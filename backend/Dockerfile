@@ -39,7 +39,6 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY app ./app
 COPY migrations ./migrations
-COPY alembic.ini ./
 
 ARG GIT_SHA=dev
 ENV GIT_SHA=${GIT_SHA}
