@@ -16,8 +16,24 @@ _NEVER_AUDIT_FIELDS: set[str] = {"password_hash"}
 
 
 def _serialize(value: Any) -> Any:
+    if value is None:
+        return None
     if hasattr(value, "isoformat"):
         return value.isoformat()
+    # PostGIS geometries → GeoJSON
+    try:
+        from geoalchemy2 import WKBElement
+        from geoalchemy2.shape import to_shape
+
+        if isinstance(value, WKBElement):
+            return to_shape(value).__geo_interface__
+    except ImportError:
+        pass
+    # Numeric → string (lossless)
+    from decimal import Decimal
+
+    if isinstance(value, Decimal):
+        return str(value)
     return value
 
 

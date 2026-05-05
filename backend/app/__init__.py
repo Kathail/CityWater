@@ -6,8 +6,11 @@ from flask_wtf.csrf import generate_csrf
 from sqlalchemy import select
 
 from app import models  # noqa: F401  populate Base.metadata for migrations + create_all
+from app.api.asset_classes import asset_classes_bp
+from app.api.assets import assets_bp
 from app.api.auth import auth_bp
 from app.api.health import health_bp
+from app.api.openapi import openapi_bp
 from app.api.tenant import tenant_bp
 from app.api.users import users_bp
 from app.config import Settings
@@ -82,8 +85,11 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     register_error_handlers(app)
     app.register_blueprint(health_bp)
+    app.register_blueprint(openapi_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(tenant_bp)
     app.register_blueprint(users_bp)
+    app.register_blueprint(asset_classes_bp)
+    app.register_blueprint(assets_bp)
 
     return app

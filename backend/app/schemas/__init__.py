@@ -1,3 +1,12 @@
+from app.schemas.asset import (
+    AssetClassRead,
+    AssetCreate,
+    AssetHistoryEntry,
+    AssetHistoryResponse,
+    AssetListResponse,
+    AssetRead,
+    AssetUpdate,
+)
 from app.schemas.auth import (
     LoginRequest,
     PasswordChangeRequest,
@@ -14,6 +23,13 @@ from app.schemas.user import (
 )
 
 __all__ = [
+    "AssetClassRead",
+    "AssetCreate",
+    "AssetHistoryEntry",
+    "AssetHistoryResponse",
+    "AssetListResponse",
+    "AssetRead",
+    "AssetUpdate",
     "LoginRequest",
     "PasswordChangeRequest",
     "RegisterTenantRequest",

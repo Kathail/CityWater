@@ -4,15 +4,16 @@ import os
 
 import pytest
 from flask import g
+from flask_migrate import upgrade as flask_migrate_upgrade
 from pytest_postgresql import factories
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 from app import create_app
 from app.config import Settings
-from app.extensions import Base
 from app.extensions import db as _db
-from app.models import Role, Tenant, User, UserRole
+from app.models import Asset, Role, Tenant, User, UserRole
 from app.services.auth import hash_password
+from app.services.geometry import geojson_to_wkb
 from app.utils.uids import generate_user_uid
 
 _PG_HOST = os.environ.get("PGHOST", "localhost")
@@ -39,9 +40,8 @@ def app(postgresql):
     flask_app = create_app(settings)
     flask_app.config["WTF_CSRF_ENABLED"] = False
     with flask_app.app_context():
-        _db.session.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
-        _db.session.commit()
-        Base.metadata.create_all(_db.engine)
+        # Run real migrations so schema + seeds match production behavior.
+        flask_migrate_upgrade()
         yield flask_app
 
 
@@ -98,6 +98,32 @@ def make_user(
     return user
 
 
+def make_asset(
+    tenant: Tenant,
+    *,
+    class_code: str = "WAT_HYD",
+    asset_uid: str | None = None,
+    coords: tuple[float, float] = (-76.5, 39.3),
+    **fields,
+) -> Asset:
+    """Default geometry is a Point in the Chesapeake Bay area (real-ish coords)."""
+    g.skip_tenant_filter = True
+    if asset_uid is None:
+        asset_uid = f"TST-{generate_user_uid()[:8]}"
+    geom = geojson_to_wkb({"type": "Point", "coordinates": list(coords)})
+    fields.setdefault("status", "active")
+    asset = Asset(
+        tenant_id=tenant.id,
+        asset_uid=asset_uid,
+        class_code=class_code,
+        geom=geom,
+        **fields,
+    )
+    _db.session.add(asset)
+    _db.session.flush()
+    return asset
+
+
 @pytest.fixture
 def tenant(app):
     t = make_tenant()
@@ -108,6 +134,13 @@ def tenant(app):
 @pytest.fixture
 def admin_user(app, tenant):
     user = make_user(tenant, email="admin@acme.io", role_codes=["admin"])
+    _db.session.commit()
+    return user
+
+
+@pytest.fixture
+def supervisor_user(app, tenant):
+    user = make_user(tenant, email="sup@acme.io", role_codes=["supervisor"])
     _db.session.commit()
     return user
 
@@ -132,6 +165,13 @@ def login_client(client, slug: str, email: str, password: str = DEFAULT_PASSWORD
 def admin_client(app, admin_user):
     c = app.test_client()
     login_client(c, "acme", "admin@acme.io")
+    return c
+
+
+@pytest.fixture
+def supervisor_client(app, supervisor_user):
+    c = app.test_client()
+    login_client(c, "acme", "sup@acme.io")
     return c
 
 

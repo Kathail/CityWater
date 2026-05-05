@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "generate-api": "openapi-typescript http://localhost:5000/api/v1/openapi.json -o src/api/generated.ts"
   },
   "_dependencyJustifications": {
     "react": "UI framework (CLAUDE.md mandate: React 18)",
@@ -36,7 +37,8 @@
     "@testing-library/react": "RTL for component tests (CLAUDE.md mandate)",
     "@testing-library/jest-dom": "DOM matchers for Vitest",
     "@testing-library/user-event": "user interaction simulation in component tests (CLAUDE.md test requirement)",
-    "jsdom": "DOM environment for vitest"
+    "jsdom": "DOM environment for vitest",
+    "openapi-typescript": "generates frontend types from backend OpenAPI spec (CLAUDE.md TS rule, S2+)"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.40.0",
@@ -58,6 +60,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.0",
     "jsdom": "^24.0.0",
+    "openapi-typescript": "^7.4.0",
     "postcss": "^8.4.0",
     "prettier": "^3.2.0",
     "tailwindcss": "^3.4.0",

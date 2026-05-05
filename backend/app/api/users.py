@@ -8,12 +8,7 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from app.errors import (
-    ConflictError,
-    ForbiddenError,
-    NotFoundError,
-    ValidationError,
-)
+from app.errors import ConflictError, NotFoundError, ValidationError
 from app.extensions import db
 from app.models import Role, User, UserRole
 from app.schemas.user import (
@@ -24,15 +19,10 @@ from app.schemas.user import (
     UserUpdate,
 )
 from app.services.auth import hash_password
+from app.services.permissions import require_roles
 from app.utils.uids import generate_user_uid
 
 users_bp = Blueprint("users", __name__, url_prefix="/api/v1/users")
-
-
-def _require_admin() -> None:
-    user = current_user._get_current_object()
-    if not any(r.code == "admin" for r in user.roles):
-        raise ForbiddenError("admin role required")
 
 
 def _validate(model_cls, data):
@@ -47,9 +37,7 @@ def _user_payload(user: User) -> dict:
 
 
 def _get_user_by_uid(user_uid: str) -> User:
-    user = db.session.scalar(
-        select(User).where(User.user_uid == user_uid, User.deleted_at.is_(None))
-    )
+    user = db.session.scalar(select(User).where(User.user_uid == user_uid))
     if not user:
         raise NotFoundError(f"user {user_uid} not found")
     return user
@@ -57,14 +45,13 @@ def _get_user_by_uid(user_uid: str) -> User:
 
 @users_bp.get("")
 @login_required
+@require_roles("admin")
 def list_users():
-    _require_admin()
-
     page = max(1, request.args.get("page", 1, type=int))
     page_size = min(200, max(1, request.args.get("page_size", 50, type=int)))
     q = (request.args.get("q") or "").strip()
 
-    stmt = select(User).where(User.deleted_at.is_(None))
+    stmt = select(User)
     if q:
         like = f"%{q}%"
         stmt = stmt.where((User.email.ilike(like)) | (User.full_name.ilike(like)))
@@ -87,8 +74,8 @@ def list_users():
 
 @users_bp.post("")
 @login_required
+@require_roles("admin")
 def create_user():
-    _require_admin()
     data = _validate(UserCreate, request.get_json(silent=True) or {})
 
     user = User(
@@ -120,16 +107,16 @@ def create_user():
 
 @users_bp.get("/<string:user_uid>")
 @login_required
+@require_roles("admin")
 def get_user(user_uid: str):
-    _require_admin()
     user = _get_user_by_uid(user_uid)
     return jsonify(_user_payload(user))
 
 
 @users_bp.patch("/<string:user_uid>")
 @login_required
+@require_roles("admin")
 def update_user(user_uid: str):
-    _require_admin()
     data = _validate(UserUpdate, request.get_json(silent=True) or {})
     user = _get_user_by_uid(user_uid)
 
@@ -147,8 +134,8 @@ def update_user(user_uid: str):
 
 @users_bp.delete("/<string:user_uid>")
 @login_required
+@require_roles("admin")
 def soft_delete_user(user_uid: str):
-    _require_admin()
     user = _get_user_by_uid(user_uid)
 
     if user.id == current_user.id:
@@ -161,8 +148,8 @@ def soft_delete_user(user_uid: str):
 
 @users_bp.post("/<string:user_uid>/roles")
 @login_required
+@require_roles("admin")
 def update_user_roles(user_uid: str):
-    _require_admin()
     data = _validate(UserRolesUpdate, request.get_json(silent=True) or {})
     user = _get_user_by_uid(user_uid)
 

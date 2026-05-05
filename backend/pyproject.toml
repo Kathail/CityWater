@@ -18,6 +18,11 @@ dependencies = [
     "flask-login>=0.6",         # session auth (CLAUDE.md mandate)
     "flask-wtf>=1.2",           # CSRF on state-changing requests (CLAUDE.md mandate)
     "email-validator>=2.1",     # required for pydantic EmailStr validation
+    "geojson-pydantic>=1.1",    # typed Pydantic models for GeoJSON geometry
+    "shapely>=2.0",             # geometry conversion: GeoJSON ↔ PostGIS via SA
+    "jsonschema>=4",            # validate asset.attrs against asset_class.attribute_schema
+    "apispec[validation]>=6.6", # OpenAPI 3 spec generation from Flask + Pydantic
+    "apispec-webframeworks>=1", # Flask integration for apispec
     "gunicorn>=21.2",           # production WSGI server on Railway
     "python-json-logger>=2.0,<3", # structured JSON logs in production
 ]
