@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "../../lib/apiClient";
+import { Logo } from "../../components/Logo";
 import { login, type AuthEnvelope } from "./api";
 import { ME_QUERY_KEY } from "./useAuth";
 
@@ -72,11 +73,16 @@ export function LoginPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm rounded-lg border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-blue-500/5 space-y-4"
       >
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">
-            CityWater
-          </p>
-          <h1 className="mt-1 text-xl font-semibold text-slate-100">Sign in</h1>
+        <div className="flex items-center gap-3">
+          <Logo size={48} />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">
+              CityWater
+            </p>
+            <h1 className="text-xl font-semibold text-slate-100 leading-tight">
+              Sign in
+            </h1>
+          </div>
         </div>
         <label className="block">
           <span className="text-sm text-slate-300">Company slug</span>

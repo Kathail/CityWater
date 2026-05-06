@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { logout } from "../features/auth/api";
 import { ME_QUERY_KEY, useAuth } from "../features/auth/useAuth";
 import { ConflictDrawer } from "./ConflictDrawer";
+import { Logo } from "./Logo";
 import { OfflineBanner } from "./OfflineBanner";
 
 export function TenantShell() {
@@ -44,9 +45,14 @@ export function TenantShell() {
   return (
     <div className="min-h-screen flex bg-slate-950 text-slate-100">
       <aside className="w-56 border-r border-slate-800 bg-slate-900 p-4 flex flex-col">
-        <Link to={`/${slug}/`} className="mb-6 block">
-          <h1 className="text-lg font-semibold text-slate-100">{tenant.name}</h1>
-          <p className="text-xs text-blue-400">/{slug}</p>
+        <Link to={`/${slug}/`} className="mb-6 flex items-center gap-2.5">
+          <Logo size={32} className="shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-base font-semibold text-slate-100 leading-tight truncate">
+              {tenant.name}
+            </h1>
+            <p className="text-xs text-blue-400">/{slug}</p>
+          </div>
         </Link>
         <nav className="flex flex-col gap-1">
           {navLink(`/${slug}/`, "Home")}
