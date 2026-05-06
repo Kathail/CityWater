@@ -50,7 +50,7 @@ def test_create_linestring_asset(admin_client):
         json={"class_code": "WAT_MAIN", "geometry": LINE, "material": "PVC"},
     )
     assert resp.status_code == 201
-    assert resp.get_json()["asset_uid"].startswith("MAIN-")
+    assert resp.get_json()["asset_uid"].startswith("WMAIN-")
 
 
 def test_create_polygon_asset(admin_client):

@@ -107,4 +107,8 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(inspections_bp)
     app.register_blueprint(pacp_codes_bp)
 
+    from app.cli.seed_demo import register as register_seed_demo
+
+    register_seed_demo(app)
+
     return app
