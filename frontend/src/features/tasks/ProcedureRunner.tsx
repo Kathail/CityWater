@@ -25,18 +25,26 @@ export function ProcedureRunner({ task, taskData, onChange }: Props) {
   const steps = proc.steps ?? [];
   const stepState: StepState = (taskData._steps as StepState) ?? {};
 
+  function autoChecked(step: ProcedureStep): boolean {
+    if (!step.auto_complete_when) return false;
+    return safeEvaluate(step.auto_complete_when, taskData, false);
+  }
+
   function isStepChecked(step: ProcedureStep): boolean {
-    if (step.auto_complete_when) {
-      return safeEvaluate(step.auto_complete_when, taskData, false);
-    }
-    return stepState[step.n] === true;
+    // Manual override (true/false) always wins; otherwise fall back to the
+    // auto-complete rule. This lets operators tick a step without filling
+    // the underlying form field, and lets them un-tick a step that the
+    // auto-rule has marked.
+    const override = stepState[step.n];
+    if (override === true || override === false) return override;
+    return autoChecked(step);
   }
 
   function toggleManual(step: ProcedureStep) {
-    if (step.auto_complete_when) return; // auto-checked; manual toggle disabled
+    const currentlyChecked = isStepChecked(step);
     const nextState: StepState = {
       ...stepState,
-      [step.n]: stepState[step.n] === true ? null : true,
+      [step.n]: !currentlyChecked,
     };
     onChange({ ...taskData, _steps: nextState });
   }
@@ -87,16 +95,16 @@ export function ProcedureRunner({ task, taskData, onChange }: Props) {
           <ol className="space-y-2">
             {steps.map((step) => {
               const checked = isStepChecked(step);
-              const auto = !!step.auto_complete_when;
+              const overridden = stepState[step.n] !== undefined && stepState[step.n] !== null;
+              const wouldAuto = autoChecked(step);
               return (
                 <li key={step.n}>
                   <button
                     type="button"
                     onClick={() => toggleManual(step)}
-                    disabled={auto}
                     className={`flex w-full items-start gap-3 rounded-md border p-3 text-left transition-colors ${
                       checked
-                        ? "border-blue-500/40 bg-blue-500/10"
+                        ? "border-blue-500/40 bg-blue-500/10 hover:border-blue-400"
                         : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                     }`}
                   >
@@ -114,9 +122,9 @@ export function ProcedureRunner({ task, taskData, onChange }: Props) {
                       <p className="text-sm text-slate-100">
                         <span className="text-slate-500">{step.n}.</span>{" "}
                         {step.title}
-                        {auto && (
+                        {overridden && wouldAuto !== checked && (
                           <span className="ml-2 text-xs text-slate-500">
-                            (auto)
+                            (override)
                           </span>
                         )}
                       </p>
