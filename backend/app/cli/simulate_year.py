@@ -47,6 +47,7 @@ from app.models import (
     Tenant,
     User,
     WorkOrder,
+    WorkOrderAsset,
     WorkOrderTimeLog,
 )
 
@@ -81,6 +82,34 @@ DAILY_BY_DOMAIN = {
 }
 
 DISTRICTS = ["North", "South", "East", "West", "Central"]
+
+
+# How many assets a daily WO should carry, and which class to draw from.
+# (min, max) inclusive. Tuned so a hydrant-flushing day has 8-15 stops
+# and a CCTV survey is just 1 main per day.
+_STOP_COUNT: dict[str, tuple[int, int]] = {
+    "WAT-TASK-HYDRANT-FLUSH": (8, 15),
+    "WAT-TASK-VALVE-EXERCISE": (6, 12),
+    "WAT-TASK-HYDRANT-FLOW": (4, 8),
+    "SEW-TASK-LIFT-STATION": (1, 3),
+    "SEW-TASK-MANHOLE-INSPECT": (8, 18),
+    "SEW-TASK-CCTV": (1, 1),
+    "STM-TASK-CB-INSPECT": (10, 22),
+    "STM-TASK-CB-CLOGGED": (4, 10),
+    "STM-TASK-DITCH-CLEAN": (2, 5),
+}
+
+_STOP_CLASS: dict[str, str] = {
+    "WAT-TASK-HYDRANT-FLUSH": "WAT_HYD",
+    "WAT-TASK-VALVE-EXERCISE": "WAT_VLV",
+    "WAT-TASK-HYDRANT-FLOW": "WAT_HYD",
+    "SEW-TASK-LIFT-STATION": "SAN_LFT",
+    "SEW-TASK-MANHOLE-INSPECT": "SAN_MH",
+    "SEW-TASK-CCTV": "SAN_MAIN",
+    "STM-TASK-CB-INSPECT": "STM_CB",
+    "STM-TASK-CB-CLOGGED": "STM_CB",
+    "STM-TASK-DITCH-CLEAN": "STM_DTCH",
+}
 
 
 # Daily-activity task data presets, keyed by task code. Used to populate
@@ -515,6 +544,41 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
                 daily_wos_by_domain_date.setdefault((domain, cursor), []).append(wo)
                 counts["daily_wo"] += 1
 
+                # ---- Distribute multiple assets onto the daily WO ----
+                # Each daily-activity task has a target asset class and a
+                # realistic count range. Operators get 1 stop in the WO's
+                # `asset_id` column (the "primary") plus N more in the
+                # work_order_asset join, ordered by sequence.
+                stop_count = _STOP_COUNT.get(task_code, (3, 8))
+                stop_class = _STOP_CLASS.get(task_code)
+                pool = assets_by_class.get(stop_class, []) if stop_class else []
+                if pool:
+                    n_stops = rng.randint(*stop_count)
+                    chosen = rng.sample(pool, k=min(n_stops, len(pool)))
+                    # First stop becomes the "primary" — keeps the legacy
+                    # `wo.asset_id` shortcut populated for the few places
+                    # that still read it.
+                    wo.asset_id = chosen[0].id
+                    counts["wo_asset"] = counts.get("wo_asset", 0) + len(chosen)
+                    for seq, a in enumerate(chosen, start=1):
+                        # If completed, mark each stop completed during
+                        # the WO's window.
+                        completed_stop = (
+                            (started_at or scheduled) + timedelta(
+                                minutes=rng.randint(15, 240)
+                            )
+                            if final == "completed"
+                            else None
+                        )
+                        db.session.add(WorkOrderAsset(
+                            work_order_id=wo.id,
+                            asset_id=a.id,
+                            role="primary" if seq == 1 else "affected",
+                            sequence=seq,
+                            completed_at=completed_stop,
+                            created_at=datetime.now(UTC),
+                        ))
+
                 # Time logs on completed / in_progress daily WOs.
                 if final in {"completed", "in_progress"} and started_at:
                     n_logs = rng.choices([2, 3, 4], weights=[3, 5, 2])[0]
@@ -764,6 +828,7 @@ def register(app: Flask) -> None:
             "",
             "Done.",
             f"  Daily work orders (per system per workday) : {counts['daily_wo']}",
+            f"    asset stops attached to daily WOs        : {counts.get('wo_asset', 0)}",
             f"  Service requests                           : {counts['sr']}",
             f"    of which rolled into a daily WO          : {counts['sr_attached']}",
             f"  Inspections                                : {counts['inspection']}",

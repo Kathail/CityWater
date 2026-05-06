@@ -82,6 +82,19 @@ export interface Attachment {
   taken_at: string | null;
 }
 
+export type WoAssetRole = "primary" | "affected" | "isolated_by" | "witness";
+
+export interface WoAsset {
+  asset_uid: string;
+  class_code: string;
+  address_cached: string | null;
+  role: WoAssetRole;
+  sequence: number | null;
+  completed_at: string | null;
+  completion_notes: string | null;
+  notes: string | null;
+}
+
 export interface WorkOrderDetail extends WorkOrderListItem {
   id: number;
   description: string | null;
@@ -97,6 +110,7 @@ export interface WorkOrderDetail extends WorkOrderListItem {
   task_data: Record<string, unknown>;
   updated_at: string;
   tasks: Task[];
+  assets: WoAsset[];
   time_logs: TimeLog[];
   materials: Material[];
   attachments: Attachment[];
@@ -177,6 +191,45 @@ export function transitionWorkOrder(
   return apiJson<WorkOrderDetail>(
     `/api/v1/work-orders/${encodeURIComponent(wo_number)}/transition`,
     { method: "POST", body: JSON.stringify({ to, note }) },
+  );
+}
+
+export function addWoAssets(
+  wo_number: string,
+  asset_uids: string[],
+  role: WoAssetRole = "affected",
+): Promise<WorkOrderDetail> {
+  return apiJson<WorkOrderDetail>(
+    `/api/v1/work-orders/${encodeURIComponent(wo_number)}/assets`,
+    { method: "POST", body: JSON.stringify({ asset_uids, role }) },
+  );
+}
+
+export function removeWoAsset(
+  wo_number: string,
+  asset_uid: string,
+): Promise<WorkOrderDetail> {
+  return apiJson<WorkOrderDetail>(
+    `/api/v1/work-orders/${encodeURIComponent(wo_number)}/assets/${encodeURIComponent(asset_uid)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function updateWoAsset(
+  wo_number: string,
+  asset_uid: string,
+  patch: {
+    role?: WoAssetRole;
+    sequence?: number;
+    completed_at?: string | null;
+    completion_notes?: string | null;
+    notes?: string | null;
+    mark_complete?: boolean;
+  },
+): Promise<WorkOrderDetail> {
+  return apiJson<WorkOrderDetail>(
+    `/api/v1/work-orders/${encodeURIComponent(wo_number)}/assets/${encodeURIComponent(asset_uid)}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
   );
 }
 

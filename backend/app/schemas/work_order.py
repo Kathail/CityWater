@@ -164,6 +164,41 @@ class WorkOrderTransition(BaseModel):
     note: str | None = None
 
 
+WoAssetRole = Literal["primary", "affected", "isolated_by", "witness"]
+
+
+class WoAssetRead(BaseModel):
+    asset_uid: str
+    class_code: str
+    address_cached: str | None = None
+    role: WoAssetRole
+    sequence: int | None = None
+    completed_at: datetime | None = None
+    completion_notes: str | None = None
+    notes: str | None = None
+
+
+class WoAssetBulkAdd(BaseModel):
+    """Add many assets to a WO in one call. Useful for route-style WOs
+    (hydrant flushing across 20 hydrants). Existing memberships are not
+    re-added; new ones default to role=`affected` and are appended to
+    the end of the sequence."""
+
+    asset_uids: list[str] = Field(min_length=1, max_length=200)
+    role: WoAssetRole = "affected"
+
+
+class WoAssetUpdate(BaseModel):
+    role: WoAssetRole | None = None
+    sequence: int | None = None
+    completed_at: datetime | None = None
+    completion_notes: str | None = None
+    notes: str | None = None
+    # Tri-state for "mark this stop done": True → set completed_at=now,
+    # False → clear it. Null → don't touch.
+    mark_complete: bool | None = None
+
+
 class TaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str | None = None

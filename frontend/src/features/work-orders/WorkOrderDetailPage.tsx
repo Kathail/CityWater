@@ -6,6 +6,7 @@ import { LinkedItems } from "../links/LinkedItems";
 import { ProcedureRunner } from "../tasks/ProcedureRunner";
 import { getTaskDefinition, type TaskDefinitionRead } from "../tasks/api";
 import { TaskFormRenderer, type TaskData } from "../tasks/TaskFormRenderer";
+import { RouteSection } from "./RouteSection";
 import {
   addTask,
   logMaterial,
@@ -115,6 +116,8 @@ export function WorkOrderDetailPage() {
       {taskQuery.data && (
         <TaskSection task={taskQuery.data} wo={wo} slug={slug} />
       )}
+
+      <RouteSection wo={wo} slug={slug} />
 
       <TasksSection wo={wo} />
       <TimeSection wo={wo} />

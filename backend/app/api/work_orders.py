@@ -15,12 +15,14 @@ from app.extensions import db
 from app.models import (
     Asset,
     WorkOrder,
+    WorkOrderAsset,
     WorkOrderAttachment,
     WorkOrderMaterial,
     WorkOrderTask,
     WorkOrderTimeLog,
     WoTemplate,
 )
+from app.models.work_order_asset import WO_ASSET_ROLES
 from app.schemas.work_order import (
     AttachmentRead,
     MaterialCreate,
@@ -30,6 +32,8 @@ from app.schemas.work_order import (
     TaskUpdate,
     TimeLogCreate,
     TimeLogRead,
+    WoAssetBulkAdd,
+    WoAssetUpdate,
     WorkOrderCreate,
     WorkOrderListItem,
     WorkOrderListResponse,
@@ -97,6 +101,34 @@ def _materials_total(wo: WorkOrder) -> Decimal | None:
     return total if have_any else None
 
 
+def _list_wo_assets(wo_id: int) -> list[dict[str, Any]]:
+    """Joined list of (work_order_asset, asset) ordered by sequence then uid."""
+    from app.models import WorkOrderAsset
+
+    rows = db.session.execute(
+        select(WorkOrderAsset, Asset)
+        .join(Asset, Asset.id == WorkOrderAsset.asset_id)
+        .where(WorkOrderAsset.work_order_id == wo_id)
+        .order_by(
+            WorkOrderAsset.sequence.asc().nullslast(),
+            Asset.asset_uid.asc(),
+        )
+    ).all()
+    return [
+        {
+            "asset_uid": a.asset_uid,
+            "class_code": a.class_code,
+            "address_cached": a.address_cached,
+            "role": wa.role,
+            "sequence": wa.sequence,
+            "completed_at": wa.completed_at.isoformat() if wa.completed_at else None,
+            "completion_notes": wa.completion_notes,
+            "notes": wa.notes,
+        }
+        for wa, a in rows
+    ]
+
+
 def _wo_payload(wo: WorkOrder) -> dict[str, Any]:
     asset_uid = None
     if wo.asset_id:
@@ -137,6 +169,7 @@ def _wo_payload(wo: WorkOrder) -> dict[str, Any]:
         "time_logs": [_serialize_time(tl) for tl in wo.time_logs],
         "materials": [_serialize_material(m) for m in wo.materials],
         "attachments": [_serialize_attachment(a) for a in wo.attachments],
+        "assets": _list_wo_assets(wo.id),
     }
     total = _materials_total(wo)
     payload["materials_total"] = str(total) if total is not None else None
@@ -371,6 +404,130 @@ def transition_work_order(wo_number: str):
         before={"status": prev_status},
         after={"status": data.to, "note": data.note},
     )
+    db.session.commit()
+    db.session.refresh(wo)
+    return jsonify(_wo_payload(wo))
+
+
+# ---------- Multi-asset endpoints ----------
+
+
+@work_orders_bp.post("/<string:wo_number>/assets")
+@login_required
+def add_wo_assets(wo_number: str):
+    """Bulk-add assets to a work order by their UIDs. New rows get the
+    next-available sequence numbers, appended to whatever's already on
+    the WO. Idempotent — assets already attached are skipped silently."""
+    data = _validate(WoAssetBulkAdd, request.get_json(silent=True) or {})
+    wo = _get_wo(wo_number)
+
+    # Resolve UIDs → assets in one query.
+    assets = db.session.execute(
+        select(Asset).where(Asset.asset_uid.in_(data.asset_uids))
+    ).scalars().all()
+    found_uids = {a.asset_uid: a for a in assets}
+    missing = [uid for uid in data.asset_uids if uid not in found_uids]
+    if missing:
+        raise ValidationError(
+            f"unknown asset_uids: {', '.join(missing[:5])}"
+            + ("" if len(missing) <= 5 else f" (+{len(missing) - 5} more)"),
+            code="unknown_asset",
+        )
+
+    # Existing memberships — skip duplicates.
+    existing_ids = set(
+        db.session.scalars(
+            select(WorkOrderAsset.asset_id).where(
+                WorkOrderAsset.work_order_id == wo.id
+            )
+        ).all()
+    )
+    next_seq = (
+        db.session.scalar(
+            select(func.coalesce(func.max(WorkOrderAsset.sequence), 0)).where(
+                WorkOrderAsset.work_order_id == wo.id
+            )
+        )
+        or 0
+    )
+
+    added = 0
+    for uid in data.asset_uids:  # preserve caller-supplied order
+        a = found_uids[uid]
+        if a.id in existing_ids:
+            continue
+        next_seq += 1
+        db.session.add(WorkOrderAsset(
+            work_order_id=wo.id,
+            asset_id=a.id,
+            role=data.role,
+            sequence=next_seq,
+            created_at=datetime.now(UTC),
+        ))
+        added += 1
+
+    db.session.commit()
+    db.session.refresh(wo)
+    return jsonify(_wo_payload(wo))
+
+
+@work_orders_bp.delete("/<string:wo_number>/assets/<string:asset_uid>")
+@login_required
+def remove_wo_asset(wo_number: str, asset_uid: str):
+    wo = _get_wo(wo_number)
+    asset = db.session.scalar(select(Asset).where(Asset.asset_uid == asset_uid))
+    if asset is None:
+        raise NotFoundError(f"asset {asset_uid} not found")
+    row = db.session.scalar(
+        select(WorkOrderAsset).where(
+            WorkOrderAsset.work_order_id == wo.id,
+            WorkOrderAsset.asset_id == asset.id,
+        )
+    )
+    if row is None:
+        raise NotFoundError(f"asset {asset_uid} not on {wo_number}")
+    db.session.delete(row)
+    db.session.commit()
+    db.session.refresh(wo)
+    return jsonify(_wo_payload(wo))
+
+
+@work_orders_bp.patch("/<string:wo_number>/assets/<string:asset_uid>")
+@login_required
+def update_wo_asset(wo_number: str, asset_uid: str):
+    """Per-stop update: change role / sequence / notes / completion. The
+    `mark_complete` shortcut is the operator-friendly form: True → stamp
+    completed_at = now, False → clear completed_at."""
+    data = _validate(WoAssetUpdate, request.get_json(silent=True) or {})
+    wo = _get_wo(wo_number)
+    asset = db.session.scalar(select(Asset).where(Asset.asset_uid == asset_uid))
+    if asset is None:
+        raise NotFoundError(f"asset {asset_uid} not found")
+    row = db.session.scalar(
+        select(WorkOrderAsset).where(
+            WorkOrderAsset.work_order_id == wo.id,
+            WorkOrderAsset.asset_id == asset.id,
+        )
+    )
+    if row is None:
+        raise NotFoundError(f"asset {asset_uid} not on {wo_number}")
+
+    if data.role is not None:
+        row.role = data.role
+    if data.sequence is not None:
+        row.sequence = data.sequence
+    if data.completed_at is not None:
+        row.completed_at = data.completed_at
+    if data.completion_notes is not None:
+        row.completion_notes = data.completion_notes
+    if data.notes is not None:
+        row.notes = data.notes
+    if data.mark_complete is True:
+        row.completed_at = datetime.now(UTC)
+    elif data.mark_complete is False:
+        row.completed_at = None
+        row.completion_notes = None
+
     db.session.commit()
     db.session.refresh(wo)
     return jsonify(_wo_payload(wo))
