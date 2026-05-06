@@ -7,9 +7,27 @@ interface Props {
   onToggle: (classCode: string, visible: boolean) => void;
   basemap: BasemapId;
   onBasemapChange: (id: BasemapId) => void;
+  showWos?: boolean;
+  showSrs?: boolean;
+  onToggleWos?: (v: boolean) => void;
+  onToggleSrs?: (v: boolean) => void;
+  woCount?: number;
+  srCount?: number;
 }
 
-export function LayerPanel({ layers, visibleClasses, onToggle, basemap, onBasemapChange }: Props) {
+export function LayerPanel({
+  layers,
+  visibleClasses,
+  onToggle,
+  basemap,
+  onBasemapChange,
+  showWos = true,
+  showSrs = true,
+  onToggleWos,
+  onToggleSrs,
+  woCount = 0,
+  srCount = 0,
+}: Props) {
   const byDomain = layers.reduce<Record<string, TileLayerDescriptor[]>>((acc, l) => {
     (acc[l.domain] ??= []).push(l);
     return acc;
@@ -38,6 +56,50 @@ export function LayerPanel({ layers, visibleClasses, onToggle, basemap, onBasema
             </option>
           ))}
         </select>
+      </section>
+
+      <section aria-labelledby="ops-heading" className="mb-4">
+        <h2 id="ops-heading" className="text-xs font-medium uppercase text-slate-400 mb-1">
+          Operational
+        </h2>
+        <ul className="space-y-1">
+          <li>
+            <label className="flex items-center gap-2 cursor-pointer text-sm hover:bg-slate-800/50 rounded px-1 py-0.5">
+              <input
+                type="checkbox"
+                checked={showWos}
+                onChange={(e) => onToggleWos?.(e.target.checked)}
+                aria-label="Toggle open work orders"
+              />
+              <span
+                className="inline-block h-3 w-3 rounded-full border-2 border-blue-400"
+                aria-hidden="true"
+              />
+              <span className="text-slate-200">Open work orders</span>
+              <span className="ml-auto text-xs tabular-nums text-slate-400">
+                {woCount}
+              </span>
+            </label>
+          </li>
+          <li>
+            <label className="flex items-center gap-2 cursor-pointer text-sm hover:bg-slate-800/50 rounded px-1 py-0.5">
+              <input
+                type="checkbox"
+                checked={showSrs}
+                onChange={(e) => onToggleSrs?.(e.target.checked)}
+                aria-label="Toggle active service requests"
+              />
+              <span
+                className="inline-block h-3 w-3 rounded-full bg-amber-500"
+                aria-hidden="true"
+              />
+              <span className="text-slate-200">Active service requests</span>
+              <span className="ml-auto text-xs tabular-nums text-slate-400">
+                {srCount}
+              </span>
+            </label>
+          </li>
+        </ul>
       </section>
 
       {domains.map((d) => {

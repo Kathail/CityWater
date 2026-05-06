@@ -21,6 +21,7 @@ from app.api.dashboard import dashboard_bp
 from app.api.inspections import inspections_bp
 from app.api.invitations import invitations_bp
 from app.api.links import links_bp
+from app.api.map_overlays import map_overlays_bp
 from app.api.openapi import openapi_bp
 from app.api.pacp_codes import pacp_codes_bp
 from app.api.reports import reports_bp
@@ -142,6 +143,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(service_requests_bp)
     app.register_blueprint(task_definitions_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(map_overlays_bp)
     app.register_blueprint(admin_audit_bp)
 
     from app.cli.geocode_tick import register as register_geocode_tick

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl, { type Map as MapLibreMap, type MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useTileLayers } from "./hooks";
+import { useMapOverlays, useTileLayers } from "./hooks";
 import { LayerPanel } from "./LayerPanel";
 import type { BasemapId } from "./basemap";
 import { AssetSidePanel, type ClickedFeature } from "./AssetSidePanel";
 import { MapContextMenu } from "./MapContextMenu";
 import { AddAssetDialog } from "./AddAssetDialog";
+import { MapSearchBar, type MapSearchHit } from "./MapSearchBar";
 
 const SATELLITE_TILE_URL = (import.meta as { env: { VITE_SATELLITE_TILE_URL?: string } }).env
   .VITE_SATELLITE_TILE_URL;
@@ -63,9 +64,12 @@ export function MapPage() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const tileLayersQuery = useTileLayers();
+  const overlaysQuery = useMapOverlays();
 
   const [basemap, setBasemap] = useState<BasemapId>("osm");
   const [visibleClasses, setVisibleClasses] = useState<Set<string>>(new Set());
+  const [showWos, setShowWos] = useState(true);
+  const [showSrs, setShowSrs] = useState(true);
   const [selected, setSelected] = useState<ClickedFeature | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pixel: [number, number];
@@ -115,6 +119,16 @@ export function MapPage() {
     function ensureLayers() {
       if (!map || !layers) return;
       if (map.getSource("assets")) return;
+      // Operational overlay sources (empty until overlaysQuery resolves;
+      // a separate effect syncs the data).
+      map.addSource("op-wos", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addSource("op-srs", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
       map.addSource("assets", {
         type: "vector",
         tiles: [`${window.location.origin}/api/v1/tiles/assets/{z}/{x}/{y}.pbf`],
@@ -163,6 +177,41 @@ export function MapPage() {
           });
         }
       }
+
+      // Operational overlay layers — open WOs (purple ring, color by
+      // priority) and active SRs (filled pin, color by priority).
+      // Drawn on top of assets so they're always clickable first.
+      const priorityColor: maplibregl.ExpressionSpecification = [
+        "match",
+        ["get", "priority"],
+        "emergency", "#ef4444",
+        "high", "#f59e0b",
+        "normal", "#3b82f6",
+        "low", "#94a3b8",
+        "#94a3b8",
+      ];
+      map.addLayer({
+        id: "op-wos-layer",
+        type: "circle",
+        source: "op-wos",
+        paint: {
+          "circle-radius": 7,
+          "circle-color": "#1e293b",
+          "circle-stroke-width": 3,
+          "circle-stroke-color": priorityColor,
+        },
+      });
+      map.addLayer({
+        id: "op-srs-layer",
+        type: "circle",
+        source: "op-srs",
+        paint: {
+          "circle-radius": 6,
+          "circle-color": priorityColor,
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#0f172a",
+        },
+      });
     }
 
     if (map.isStyleLoaded()) {
@@ -187,11 +236,78 @@ export function MapPage() {
     }
   }, [visibleClasses, tileLayersQuery.data, basemap]);
 
+  // Push overlay GeoJSON into the map sources whenever the query refetches.
+  useEffect(() => {
+    const map = mapRef.current;
+    const overlays = overlaysQuery.data;
+    if (!map || !overlays) return;
+    function update() {
+      if (!map || !overlays) return;
+      const wos = map.getSource("op-wos") as maplibregl.GeoJSONSource | undefined;
+      const srs = map.getSource("op-srs") as maplibregl.GeoJSONSource | undefined;
+      wos?.setData(overlays.open_wos);
+      srs?.setData(overlays.active_srs);
+    }
+    if (map.isStyleLoaded() && map.getSource("op-wos")) update();
+    else map.once("idle", update);
+  }, [overlaysQuery.data, basemap]);
+
+  // WO / SR overlay visibility
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (map.getLayer("op-wos-layer")) {
+      map.setLayoutProperty("op-wos-layer", "visibility", showWos ? "visible" : "none");
+    }
+    if (map.getLayer("op-srs-layer")) {
+      map.setLayoutProperty("op-srs-layer", "visibility", showSrs ? "visible" : "none");
+    }
+  }, [showWos, showSrs, tileLayersQuery.data, basemap]);
+
   // Bind click + contextmenu handlers
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     const onClick = (e: MapMouseEvent) => {
+      // First look for WO/SR pins — they're drawn on top and almost
+      // always what the operator means to click.
+      const opLayers = ["op-wos-layer", "op-srs-layer"].filter((id) =>
+        map.getLayer(id),
+      );
+      const opFeatures = opLayers.length
+        ? map.queryRenderedFeatures(e.point, { layers: opLayers })
+        : [];
+      if (opFeatures.length > 0) {
+        const f = opFeatures[0];
+        const props = (f.properties ?? {}) as Record<string, unknown>;
+        const kind = String(props.kind ?? "");
+        if (kind === "work_order") {
+          setSelected({
+            kind: "work_order",
+            wo_number: String(props.wo_number),
+            title: String(props.title ?? ""),
+            category: String(props.category ?? ""),
+            priority: String(props.priority ?? ""),
+            status: String(props.status ?? ""),
+            asset_uid: props.asset_uid ? String(props.asset_uid) : null,
+          });
+        } else if (kind === "service_request") {
+          setSelected({
+            kind: "service_request",
+            sr_number: String(props.sr_number),
+            category: String(props.category ?? ""),
+            priority: String(props.priority ?? ""),
+            status: String(props.status ?? ""),
+            reported_address: props.reported_address
+              ? String(props.reported_address)
+              : null,
+            asset_uid: props.asset_uid ? String(props.asset_uid) : null,
+          });
+        }
+        setContextMenu(null);
+        return;
+      }
+      // Otherwise, fall back to asset click.
       const features = map.queryRenderedFeatures(e.point, {
         filter: ["has", "asset_uid"],
       });
@@ -199,6 +315,7 @@ export function MapPage() {
         const f = features[0];
         const props = f.properties ?? {};
         setSelected({
+          kind: "asset",
           asset_uid: String(props.asset_uid),
           class_code: String(props.class_code ?? ""),
           domain: String(props.domain ?? ""),
@@ -219,11 +336,57 @@ export function MapPage() {
     };
     map.on("click", onClick);
     map.on("contextmenu", onContext);
+    // Pointer cursor over operational pins.
+    const onMove = (e: MapMouseEvent) => {
+      if (!map.getLayer("op-wos-layer")) return;
+      const hit = map.queryRenderedFeatures(e.point, {
+        layers: ["op-wos-layer", "op-srs-layer"].filter((l) => map.getLayer(l)),
+      });
+      map.getCanvas().style.cursor = hit.length ? "pointer" : "";
+    };
+    map.on("mousemove", onMove);
     return () => {
       map.off("click", onClick);
       map.off("contextmenu", onContext);
+      map.off("mousemove", onMove);
     };
   }, []);
+
+  function flyToHit(hit: MapSearchHit) {
+    const map = mapRef.current;
+    if (!map) return;
+    map.flyTo({ center: [hit.lon, hit.lat], zoom: Math.max(map.getZoom(), 16) });
+    if (hit.kind === "asset") {
+      setSelected({
+        kind: "asset",
+        asset_uid: hit.uid,
+        class_code: hit.class_code ?? "",
+        domain: hit.domain ?? "",
+        status: hit.status ?? "",
+        condition: null,
+      });
+    } else if (hit.kind === "work_order") {
+      setSelected({
+        kind: "work_order",
+        wo_number: hit.uid,
+        title: hit.label,
+        category: "",
+        priority: hit.priority ?? "",
+        status: hit.status ?? "",
+        asset_uid: null,
+      });
+    } else if (hit.kind === "service_request") {
+      setSelected({
+        kind: "service_request",
+        sr_number: hit.uid,
+        category: hit.class_code ?? "",
+        priority: hit.priority ?? "",
+        status: hit.status ?? "",
+        reported_address: hit.label,
+        asset_uid: null,
+      });
+    }
+  }
 
   function toggleClass(classCode: string, visible: boolean) {
     setVisibleClasses((prev) => {
@@ -242,9 +405,16 @@ export function MapPage() {
         onToggle={toggleClass}
         basemap={basemap}
         onBasemapChange={setBasemap}
+        showWos={showWos}
+        showSrs={showSrs}
+        onToggleWos={setShowWos}
+        onToggleSrs={setShowSrs}
+        woCount={overlaysQuery.data?.open_wos.features.length ?? 0}
+        srCount={overlaysQuery.data?.active_srs.features.length ?? 0}
       />
       <div className="relative flex-1">
         <div ref={containerRef} className="absolute inset-0" data-testid="map-container" />
+        <MapSearchBar onPick={flyToHit} />
         {selected && <AssetSidePanel feature={selected} onClose={() => setSelected(null)} />}
         {contextMenu && (
           <MapContextMenu
