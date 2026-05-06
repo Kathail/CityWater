@@ -8,6 +8,8 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { RegisterTenantPage } from "./features/auth/RegisterTenantPage";
 import { RequireAuth } from "./features/auth/RequireAuth";
 import { TenantHomePage } from "./features/auth/TenantHomePage";
+import { InspectionDetailPage } from "./features/inspections/InspectionDetailPage";
+import { InspectionListPage } from "./features/inspections/InspectionListPage";
 import { WorkOrderDetailPage } from "./features/work-orders/WorkOrderDetailPage";
 import { WorkOrderListPage } from "./features/work-orders/WorkOrderListPage";
 
@@ -48,6 +50,8 @@ export function App() {
             <Route path="assets/:uid" element={<AssetDetailPage />} />
             <Route path="work-orders" element={<WorkOrderListPage />} />
             <Route path="work-orders/:wo" element={<WorkOrderDetailPage />} />
+            <Route path="inspections" element={<InspectionListPage />} />
+            <Route path="inspections/:n" element={<InspectionDetailPage />} />
             <Route
               path="map"
               element={

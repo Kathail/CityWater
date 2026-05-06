@@ -3,6 +3,8 @@ from app.models.asset import Asset
 from app.models.asset_class import AssetClass
 from app.models.audit import AuditLog
 from app.models.crew import Crew, CrewMember
+from app.models.inspection import VALID_KINDS as INSPECTION_VALID_KINDS
+from app.models.inspection import Inspection
 from app.models.mixins import (
     AuditableMixin,
     SoftDeleteMixin,
@@ -27,6 +29,7 @@ from app.models.work_order import (
 
 __all__ = [
     "ASSET_VALID_STATUSES",
+    "INSPECTION_VALID_KINDS",
     "VALID_ATTACHMENT_KINDS",
     "VALID_CATEGORIES",
     "VALID_PRIORITIES",
@@ -38,6 +41,7 @@ __all__ = [
     "AuditableMixin",
     "Crew",
     "CrewMember",
+    "Inspection",
     "Role",
     "SoftDeleteMixin",
     "Tenant",

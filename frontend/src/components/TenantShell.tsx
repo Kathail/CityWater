@@ -47,6 +47,7 @@ export function TenantShell() {
           {navLink(`/${slug}/map`, "Map")}
           {navLink(`/${slug}/assets`, "Assets")}
           {navLink(`/${slug}/work-orders`, "Work orders")}
+          {navLink(`/${slug}/inspections`, "Inspections")}
         </nav>
         <div className="mt-auto pt-4 border-t border-slate-200">
           <p className="text-xs text-slate-600">{user.full_name}</p>
