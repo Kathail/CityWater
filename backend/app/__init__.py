@@ -17,6 +17,7 @@ from app.api.comments import comments_bp
 from app.api.crews import crews_bp
 from app.api.health import health_bp
 from app.api.history import history_bp
+from app.api.dashboard import dashboard_bp
 from app.api.inspections import inspections_bp
 from app.api.invitations import invitations_bp
 from app.api.links import links_bp
@@ -140,6 +141,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(schedules_bp)
     app.register_blueprint(service_requests_bp)
     app.register_blueprint(task_definitions_bp)
+    app.register_blueprint(dashboard_bp)
     app.register_blueprint(admin_audit_bp)
 
     from app.cli.geocode_tick import register as register_geocode_tick
