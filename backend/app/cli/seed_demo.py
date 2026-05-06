@@ -137,12 +137,23 @@ def _wipe_demo() -> None:
     db.session.execute(
         ServiceRequest.__table__.delete().where(ServiceRequest.tenant_id == tenant_id)
     )
-    # New in S11+: invitations, entity_links, schedules. All FK→tenant.
-    from app.models import EntityLink, Invitation, Schedule
+    # New in S11+: invitations, entity_links, schedules, task_definitions,
+    # comments. All FK→tenant.
+    from app.models import (
+        Comment,
+        EntityLink,
+        Invitation,
+        Schedule,
+        TaskDefinition,
+    )
 
+    db.session.execute(Comment.__table__.delete().where(Comment.tenant_id == tenant_id))
     db.session.execute(Invitation.__table__.delete().where(Invitation.tenant_id == tenant_id))
     db.session.execute(EntityLink.__table__.delete().where(EntityLink.tenant_id == tenant_id))
     db.session.execute(Schedule.__table__.delete().where(Schedule.tenant_id == tenant_id))
+    db.session.execute(
+        TaskDefinition.__table__.delete().where(TaskDefinition.tenant_id == tenant_id)
+    )
     db.session.execute(WoTemplate.__table__.delete().where(WoTemplate.tenant_id == tenant_id))
     db.session.execute(Asset.__table__.delete().where(Asset.tenant_id == tenant_id))
     db.session.execute(Crew.__table__.delete().where(Crew.tenant_id == tenant_id))
@@ -681,6 +692,14 @@ def _seed() -> None:
         description="Vehicle struck a hydrant, water spraying.",
         reported_at=datetime.now(UTC) - timedelta(days=2),
     )
+
+    # Task definitions — start with WAT-TASK-DISCOLOURED so the slice is
+    # provable end-to-end on a fresh seed.
+    from app.models import TaskDefinition
+    from app.seeds.tasks.wat_discoloured import TASK_WAT_DISCOLOURED
+
+    td = TaskDefinition(tenant_id=tenant.id, **TASK_WAT_DISCOLOURED)
+    db.session.add(td)
 
     db.session.commit()
 

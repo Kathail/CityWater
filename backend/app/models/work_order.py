@@ -117,6 +117,18 @@ class WorkOrder(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Audita
     # Free-text override populated when the operator's address differs
     # from the linked asset's `address_cached`. Empty/null = no override.
     address_override: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Task-driven UI: the task definition governing this WO's form,
+    # procedure, and completion contract. NULL for ad-hoc / legacy WOs.
+    task_definition_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("task_definition.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # Operator answers to the task's form fields. Separate from `attrs`
+    # (asset-class schema payload) and from raw columns like priority.
+    task_data: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
 
     # Eager-loaded so the resolver can read through without round-trips.
     asset_obj: Mapped[Asset | None] = relationship(  # type: ignore[name-defined]  # forward-ref

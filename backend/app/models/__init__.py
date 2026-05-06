@@ -25,6 +25,7 @@ from app.models.mixins import (
 from app.models.pacp_code import PacpCode
 from app.models.schedule import SCHEDULE_KINDS, Schedule
 from app.models.service_request import ServiceRequest
+from app.models.task_definition import TaskDefinition
 from app.models.tenant import Tenant
 from app.models.user import Role, User, UserRole
 from app.models.wo_template import WoTemplate
@@ -71,6 +72,7 @@ __all__ = [
     "Schedule",
     "ServiceRequest",
     "SoftDeleteMixin",
+    "TaskDefinition",
     "Tenant",
     "TenantScopedMixin",
     "TimestampMixin",

@@ -19,6 +19,7 @@ import { InspectionListPage } from "./features/inspections/InspectionListPage";
 import { ReportDetailPage } from "./features/reports/ReportDetailPage";
 import { ReportsPage } from "./features/reports/ReportsPage";
 import { SchedulesPage } from "./features/schedules/SchedulesPage";
+import { TaskCatalog } from "./features/tasks/TaskCatalog";
 import { ServiceRequestDetailPage } from "./features/service-requests/ServiceRequestDetailPage";
 import { ServiceRequestListPage } from "./features/service-requests/ServiceRequestListPage";
 import { WorkOrderDetailPage } from "./features/work-orders/WorkOrderDetailPage";
@@ -78,6 +79,7 @@ export function App() {
               <Route path="invitations" element={<AdminInvitationsPage />} />
               <Route path="tenant" element={<AdminTenantPage />} />
               <Route path="asset-classes" element={<AdminAssetClassesPage />} />
+              <Route path="task-definitions" element={<TaskCatalog />} />
             </Route>
             <Route
               path="map"

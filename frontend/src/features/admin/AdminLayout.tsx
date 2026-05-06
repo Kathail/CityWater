@@ -6,6 +6,7 @@ const TABS = [
   { to: "invitations", label: "Invitations" },
   { to: "tenant", label: "Tenant" },
   { to: "asset-classes", label: "Asset classes" },
+  { to: "task-definitions", label: "Tasks" },
 ];
 
 export function AdminLayout() {

@@ -109,6 +109,14 @@ class ServiceRequest(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, A
     attrs: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
     )
+    task_definition_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("task_definition.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    task_data: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
 
     asset_obj: Mapped[Asset | None] = relationship(  # type: ignore[name-defined]  # noqa: F821
         "Asset", foreign_keys=[asset_id], lazy="joined"

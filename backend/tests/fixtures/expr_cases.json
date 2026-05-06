@@ -1,0 +1,61 @@
+[
+  {"expression": "true", "context": {}, "expected": true},
+  {"expression": "false", "context": {}, "expected": false},
+  {"expression": "!false", "context": {}, "expected": true},
+  {"expression": "!true", "context": {}, "expected": false},
+
+  {"expression": "x == 1", "context": {"x": 1}, "expected": true},
+  {"expression": "x == 1", "context": {"x": 2}, "expected": false},
+  {"expression": "x != 1", "context": {"x": 2}, "expected": true},
+
+  {"expression": "x > 5", "context": {"x": 6}, "expected": true},
+  {"expression": "x > 5", "context": {"x": 5}, "expected": false},
+  {"expression": "x >= 5", "context": {"x": 5}, "expected": true},
+  {"expression": "x < 5", "context": {"x": 4}, "expected": true},
+  {"expression": "x <= 5", "context": {"x": 5}, "expected": true},
+
+  {"expression": "x > 5 && y < 10", "context": {"x": 6, "y": 9}, "expected": true},
+  {"expression": "x > 5 && y < 10", "context": {"x": 6, "y": 11}, "expected": false},
+  {"expression": "x == 1 || y == 2", "context": {"x": 0, "y": 2}, "expected": true},
+  {"expression": "x == 1 || y == 2", "context": {"x": 0, "y": 0}, "expected": false},
+
+  {"expression": "(x > 0 && y > 0) || z == 'go'", "context": {"x": 1, "y": 1, "z": "no"}, "expected": true},
+  {"expression": "(x > 0 && y > 0) || z == 'go'", "context": {"x": 0, "y": 1, "z": "go"}, "expected": true},
+  {"expression": "(x > 0 && y > 0) || z == 'go'", "context": {"x": 0, "y": 1, "z": "no"}, "expected": false},
+
+  {"expression": "a.b.c == 'foo'", "context": {"a": {"b": {"c": "foo"}}}, "expected": true},
+  {"expression": "a.b.c == 'foo'", "context": {"a": {"b": {"c": "bar"}}}, "expected": false},
+  {"expression": "a.b.missing == null", "context": {"a": {"b": {}}}, "expected": true},
+  {"expression": "a.missing.deeper == null", "context": {"a": {}}, "expected": true},
+
+  {"expression": "missing == null", "context": {}, "expected": true},
+  {"expression": "missing != null", "context": {}, "expected": false},
+  {"expression": "missing == 'x'", "context": {}, "expected": false},
+  {"expression": "missing > 5", "context": {}, "expected": false},
+
+  {"expression": "n in [1, 2, 3]", "context": {"n": 2}, "expected": true},
+  {"expression": "n in [1, 2, 3]", "context": {"n": 9}, "expected": false},
+  {"expression": "n not in [1, 2, 3]", "context": {"n": 9}, "expected": true},
+  {"expression": "n not in [1, 2, 3]", "context": {"n": 1}, "expected": false},
+  {"expression": "kind in ['hyd', 'valve']", "context": {"kind": "valve"}, "expected": true},
+
+  {"expression": "!flag", "context": {"flag": false}, "expected": true},
+  {"expression": "!flag", "context": {"flag": true}, "expected": false},
+  {"expression": "!!flag", "context": {"flag": true}, "expected": true},
+
+  {"expression": "site_visited == true && outcome != null", "context": {"site_visited": true, "outcome": "resolved"}, "expected": true},
+  {"expression": "site_visited == true && outcome != null", "context": {"site_visited": false, "outcome": "resolved"}, "expected": false},
+  {"expression": "cold_run_minutes >= 10 || cold_outcome == 'cleared'", "context": {"cold_run_minutes": 12, "cold_outcome": "still_discoloured"}, "expected": true},
+  {"expression": "cold_run_minutes >= 10 || cold_outcome == 'cleared'", "context": {"cold_run_minutes": 5, "cold_outcome": "cleared"}, "expected": true},
+  {"expression": "cold_run_minutes >= 10 || cold_outcome == 'cleared'", "context": {"cold_run_minutes": 5, "cold_outcome": "still_discoloured"}, "expected": false},
+
+  {"expression": "name", "context": {"name": "alice"}, "expected": true},
+  {"expression": "name", "context": {"name": ""}, "expected": false},
+  {"expression": "name", "context": {}, "expected": false},
+  {"expression": "n", "context": {"n": 0}, "expected": false},
+  {"expression": "n", "context": {"n": 5}, "expected": true},
+
+  {"expression": "x ==", "context": {"x": 1}, "expected": "error"},
+  {"expression": "(x", "context": {"x": 1}, "expected": "error"},
+  {"expression": "x in 5", "context": {"x": 1}, "expected": "error"}
+]

@@ -26,6 +26,7 @@ from app.api.reports import reports_bp
 from app.api.resolved import resolved_bp
 from app.api.schedules import schedules_bp
 from app.api.service_requests import service_requests_bp
+from app.api.task_definitions import task_definitions_bp
 from app.api.tenant import tenant_bp
 from app.api.tiles import tiles_bp
 from app.api.users import users_bp
@@ -138,6 +139,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(resolved_bp)
     app.register_blueprint(schedules_bp)
     app.register_blueprint(service_requests_bp)
+    app.register_blueprint(task_definitions_bp)
     app.register_blueprint(admin_audit_bp)
 
     from app.cli.geocode_tick import register as register_geocode_tick
