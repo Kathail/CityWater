@@ -17,11 +17,12 @@ export function useAssetClasses() {
   });
 }
 
-export function useAssets(params: AssetListParams) {
+export function useAssets(params: AssetListParams, enabled: boolean = true) {
   return useQuery<AssetListResponse, Error>({
     queryKey: ["assets", params],
     queryFn: () => listAssets(params),
     placeholderData: (prev) => prev,
+    enabled,
   });
 }
 

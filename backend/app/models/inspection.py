@@ -16,7 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
 from app.models.mixins import (
@@ -78,4 +78,11 @@ class Inspection(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Audit
     )
     attrs: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
+    )
+
+    asset_obj: Mapped[Asset | None] = relationship(  # type: ignore[name-defined]  # noqa: F821
+        "Asset", foreign_keys=[asset_id], lazy="joined"
+    )
+    work_order_obj: Mapped[WorkOrder | None] = relationship(  # type: ignore[name-defined]  # noqa: F821
+        "WorkOrder", foreign_keys=[work_order_id], lazy="joined"
     )

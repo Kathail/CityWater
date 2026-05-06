@@ -46,6 +46,4 @@ class Comment(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Auditabl
     created_by: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True
     )
-    edited_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

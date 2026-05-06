@@ -12,6 +12,7 @@ from app.models.entity_link import (
     LINK_KINDS,
     EntityLink,
 )
+from app.models.geocode_queue import GeocodeQueue
 from app.models.inspection import VALID_KINDS as INSPECTION_VALID_KINDS
 from app.models.inspection import Inspection
 from app.models.invitation import Invitation
@@ -39,6 +40,7 @@ from app.models.work_order import (
     WorkOrderTask,
     WorkOrderTimeLog,
 )
+from app.models.work_order_asset import WO_ASSET_ROLES, WorkOrderAsset
 
 __all__ = [
     "ASSET_VALID_STATUSES",
@@ -52,6 +54,7 @@ __all__ = [
     "VALID_PRIORITIES",
     "VALID_STATUSES",
     "VALID_TYPES",
+    "WO_ASSET_ROLES",
     "Asset",
     "AssetClass",
     "AuditLog",
@@ -60,6 +63,7 @@ __all__ = [
     "Crew",
     "CrewMember",
     "EntityLink",
+    "GeocodeQueue",
     "Inspection",
     "Invitation",
     "PacpCode",
@@ -74,6 +78,7 @@ __all__ = [
     "UserRole",
     "WoTemplate",
     "WorkOrder",
+    "WorkOrderAsset",
     "WorkOrderAttachment",
     "WorkOrderMaterial",
     "WorkOrderTask",

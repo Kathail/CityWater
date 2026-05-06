@@ -15,7 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
 from app.models.mixins import (
@@ -80,9 +80,16 @@ class ServiceRequest(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, A
     caller_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     caller_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     caller_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
-    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # `reported_address` is what the caller said. The resolved address
+    # (used for display) flows through the linked asset's `address_cached`
+    # OR the operator-typed `address_override`.
+    reported_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    address_override: Mapped[str | None] = mapped_column(Text, nullable=True)
     location: Mapped[Any | None] = mapped_column(
         Geometry(geometry_type="POINT", srid=4326), nullable=True
+    )
+    asset_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("asset.id", ondelete="SET NULL"), nullable=True
     )
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     intake_user_id: Mapped[int | None] = mapped_column(
@@ -101,4 +108,8 @@ class ServiceRequest(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, A
     )
     attrs: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
+    )
+
+    asset_obj: Mapped[Asset | None] = relationship(  # type: ignore[name-defined]  # noqa: F821
+        "Asset", foreign_keys=[asset_id], lazy="joined"
     )

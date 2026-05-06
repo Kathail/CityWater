@@ -30,7 +30,7 @@ export interface ServiceRequestRead {
   caller_name: string | null;
   caller_phone: string | null;
   caller_email: string | null;
-  address: string | null;
+  reported_address: string | null;
   location: { type: "Point"; coordinates: [number, number] } | null;
   description: string | null;
   intake_user_id: number | null;
@@ -62,7 +62,7 @@ export interface ServiceRequestListItem {
   priority: SrPriority;
   reported_at: string;
   caller_name: string | null;
-  address: string | null;
+  reported_address: string | null;
   work_order_number: string | null;
   created_at: string;
 }
@@ -91,7 +91,7 @@ export interface ServiceRequestCreateInput {
   caller_name?: string;
   caller_phone?: string;
   caller_email?: string;
-  address?: string;
+  reported_address?: string;
   location?: { type: "Point"; coordinates: [number, number] };
   description?: string;
   reported_at?: string;
@@ -110,7 +110,7 @@ export interface ServiceRequestUpdateInput {
   caller_name?: string | null;
   caller_phone?: string | null;
   caller_email?: string | null;
-  address?: string | null;
+  reported_address?: string | null;
   location?: { type: "Point"; coordinates: [number, number] } | null;
   description?: string | null;
   closure_notes?: string | null;

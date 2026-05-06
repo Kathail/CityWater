@@ -49,9 +49,7 @@ def _verify_entity(kind: str, entity_id: int) -> None:
         raise ValidationError(f"unknown entity_type {kind!r}", code="bad_type")
     row = db.session.scalar(select(cls).where(cls.id == entity_id))
     if not row:
-        raise NotFoundError(
-            f"{kind} {entity_id} not found", code="unknown_entity"
-        )
+        raise NotFoundError(f"{kind} {entity_id} not found", code="unknown_entity")
 
 
 def _author_name(user_id: int | None) -> str | None:

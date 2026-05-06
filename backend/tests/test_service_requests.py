@@ -46,7 +46,7 @@ def _intake_payload(**overrides):
         "priority": "high",
         "caller_name": "Jane Doe",
         "caller_phone": "555-1234",
-        "address": "123 Main St",
+        "reported_address": "123 Main St",
         "location": {"type": "Point", "coordinates": [-76.5, 39.3]},
         "description": "No water at the kitchen sink since this morning.",
     }
@@ -257,7 +257,7 @@ def test_address_only_no_geocode_no_dupes(admin_client, monkeypatch):
         json={
             "category": "odour",
             "domain": "sewer",
-            "address": "456 Oak Ave",
+            "reported_address": "456 Oak Ave",
             "description": "Bad smell",
         },
     )

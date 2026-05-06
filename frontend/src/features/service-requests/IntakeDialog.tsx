@@ -75,7 +75,7 @@ export function IntakeDialog({ onClose }: Props) {
         caller_name: form.caller_name || undefined,
         caller_phone: form.caller_phone || undefined,
         caller_email: form.caller_email || undefined,
-        address: form.address || undefined,
+        reported_address: form.address || undefined,
         description: form.description || undefined,
         location,
       });

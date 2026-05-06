@@ -104,7 +104,7 @@ export function ServiceRequestDetailPage() {
         </div>
         <div className="space-y-3">
           <h2 className="text-sm font-semibold uppercase text-slate-400">Location</h2>
-          <Field label="Address" value={data.address} />
+          <Field label="Address" value={data.reported_address} />
           {data.location && (
             <p className="text-sm text-slate-200">
               {data.location.coordinates[0].toFixed(5)},{" "}

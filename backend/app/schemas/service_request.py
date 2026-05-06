@@ -34,9 +34,12 @@ class ServiceRequestRead(BaseModel):
     caller_name: str | None = None
     caller_phone: str | None = None
     caller_email: str | None = None
-    address: str | None = None
+    reported_address: str | None = None
     location: dict[str, Any] | None = None
     description: str | None = None
+    address_override: str | None = None
+    asset_id: int | None = None
+    asset_uid: str | None = None
     intake_user_id: int | None = None
     work_order_id: int | None = None
     work_order_number: str | None = None
@@ -71,7 +74,7 @@ class ServiceRequestListItem(BaseModel):
     priority: SrPriority
     reported_at: datetime
     caller_name: str | None = None
-    address: str | None = None
+    reported_address: str | None = None
     work_order_number: str | None = None
     created_at: datetime
 
@@ -90,8 +93,9 @@ class ServiceRequestCreate(BaseModel):
     caller_name: str | None = Field(default=None, max_length=200)
     caller_phone: str | None = Field(default=None, max_length=64)
     caller_email: EmailStr | None = None
-    address: str | None = None
+    reported_address: str | None = None
     location: Point | None = None
+    asset_uid: str | None = None
     description: str | None = None
     reported_at: datetime | None = None
     attrs: dict[str, Any] = Field(default_factory=dict)
@@ -105,7 +109,9 @@ class ServiceRequestUpdate(BaseModel):
     caller_name: str | None = Field(default=None, max_length=200)
     caller_phone: str | None = Field(default=None, max_length=64)
     caller_email: EmailStr | None = None
-    address: str | None = None
+    reported_address: str | None = None
+    address_override: str | None = None
+    asset_uid: str | None = None
     location: Point | None = None
     description: str | None = None
     closure_notes: str | None = None

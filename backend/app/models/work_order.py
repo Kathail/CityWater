@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.models.asset import Asset
 
 from geoalchemy2 import Geometry
 from sqlalchemy import (
@@ -110,6 +113,14 @@ class WorkOrder(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Audita
     resolution: Mapped[str | None] = mapped_column(Text, nullable=True)
     attrs: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
+    )
+    # Free-text override populated when the operator's address differs
+    # from the linked asset's `address_cached`. Empty/null = no override.
+    address_override: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Eager-loaded so the resolver can read through without round-trips.
+    asset_obj: Mapped[Asset | None] = relationship(  # type: ignore[name-defined]  # forward-ref
+        "Asset", foreign_keys=[asset_id], lazy="joined"
     )
 
     tasks: Mapped[list[WorkOrderTask]] = relationship(

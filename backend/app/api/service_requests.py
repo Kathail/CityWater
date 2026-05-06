@@ -61,6 +61,7 @@ def _payload(sr: ServiceRequest) -> dict[str, Any]:
     if sr.duplicate_of_id:
         parent = db.session.get(ServiceRequest, sr.duplicate_of_id)
         dup_sr_number = parent.sr_number if parent else None
+    asset_uid = sr.asset_obj.asset_uid if sr.asset_obj else None
     return {
         "id": sr.id,
         "sr_number": sr.sr_number,
@@ -72,7 +73,10 @@ def _payload(sr: ServiceRequest) -> dict[str, Any]:
         "caller_name": sr.caller_name,
         "caller_phone": sr.caller_phone,
         "caller_email": sr.caller_email,
-        "address": sr.address,
+        "reported_address": sr.reported_address,
+        "address_override": sr.address_override,
+        "asset_id": sr.asset_id,
+        "asset_uid": asset_uid,
         "location": wkb_to_geojson(sr.location),
         "description": sr.description,
         "intake_user_id": sr.intake_user_id,
@@ -101,7 +105,7 @@ def _list_item(sr: ServiceRequest) -> dict[str, Any]:
         "priority": sr.priority,
         "reported_at": sr.reported_at.isoformat(),
         "caller_name": sr.caller_name,
-        "address": sr.address,
+        "reported_address": sr.reported_address,
         "work_order_number": wo_number,
         "created_at": sr.created_at.isoformat(),
     }
@@ -186,14 +190,21 @@ def create_service_request():
     location_dict: dict[str, Any] | None = None
     if data.location is not None:
         location_dict = data.location.model_dump()
-    elif data.address:
-        coords = reverse_geocode(data.address)
+    elif data.reported_address:
+        coords = reverse_geocode(data.reported_address)
         if coords is not None:
             lon, lat = coords
             location_dict = {"type": "Point", "coordinates": [lon, lat]}
 
     location_wkb = _location_wkb(location_dict)
     reported_at = data.reported_at or datetime.now(UTC)
+
+    asset_id = None
+    if data.asset_uid:
+        asset = db.session.scalar(select(Asset).where(Asset.asset_uid == data.asset_uid))
+        if not asset:
+            raise ValidationError(f"asset {data.asset_uid} not found", code="unknown_asset")
+        asset_id = asset.id
 
     duplicates: list[tuple[ServiceRequest, float]] = []
     if location_wkb is not None:
@@ -218,7 +229,8 @@ def create_service_request():
             caller_name=data.caller_name,
             caller_phone=data.caller_phone,
             caller_email=data.caller_email,
-            address=data.address,
+            reported_address=data.reported_address,
+            asset_id=asset_id,
             location=location_wkb,
             description=data.description,
             intake_user_id=current_user.id,
@@ -321,7 +333,8 @@ def update_service_request(sr_number: str):
         "caller_name",
         "caller_phone",
         "caller_email",
-        "address",
+        "reported_address",
+        "address_override",
         "description",
         "closure_notes",
         "closure_reason",

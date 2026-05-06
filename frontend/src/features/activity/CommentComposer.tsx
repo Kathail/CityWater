@@ -1,31 +1,21 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { ApiError } from "../../lib/apiClient";
+import { useAssets } from "../assets/hooks";
 import { type ActivityEntityType } from "./api";
 import { useCreateComment } from "./hooks";
 
 /**
  * Tablet-first comment composer.
  *
- * Quick-phrase chips are field-crew shortcuts — one tap appends the phrase
- * and a space, so an operator can stitch together a comment in 2-3 taps:
- *   [Site visited] [Found leak at] [pipe joint]
- * Every chip has a 44px+ tap target so it works with a gloved finger.
+ * Free-text body + an asset-reference picker. Tapping an asset inserts
+ * its UID into the body at the cursor (or appends), so a comment like
+ * "Flushed H8-010" is two taps + a couple of words. Operator name and
+ * timestamp are stamped server-side and rendered by the timeline.
+ *
+ * For structured "what was done" recording on a work order, the task
+ * feature is the primary tool — task completions also show up here as
+ * audit events. Comments are the catch-all for everything else.
  */
-
-const QUICK_PHRASES = [
-  "Site visited",
-  "Found leak",
-  "Repaired",
-  "Awaiting parts",
-  "Crew dispatched",
-  "Customer notified",
-  "On hold — weather",
-  "Reset complete",
-  "Hydrant flushed",
-  "Valve exercised",
-  "Photos uploaded",
-  "Returning tomorrow",
-];
 
 interface Props {
   entityType: ActivityEntityType;
@@ -35,13 +25,35 @@ interface Props {
 export function CommentComposer({ entityType, entityId }: Props) {
   const [body, setBody] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [assetQuery, setAssetQuery] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const create = useCreateComment(entityType, entityId);
 
-  function appendPhrase(phrase: string) {
-    setBody((prev) => {
-      if (!prev) return phrase + " ";
-      const sep = prev.endsWith(" ") || prev.endsWith("\n") ? "" : " ";
-      return prev + sep + phrase + " ";
+  // Load matching assets only when the picker is open and there's a hint.
+  const assets = useAssets({ q: assetQuery, page_size: 20 }, pickerOpen && assetQuery.length >= 1);
+
+  function insertReference(uid: string) {
+    const ta = textareaRef.current;
+    if (!ta) {
+      setBody((b) => (b ? `${b.trimEnd()} ${uid}` : uid));
+      return;
+    }
+    const start = ta.selectionStart ?? body.length;
+    const end = ta.selectionEnd ?? body.length;
+    const before = body.slice(0, start);
+    const after = body.slice(end);
+    const padBefore = before.length === 0 || /\s$/.test(before) ? "" : " ";
+    const padAfter = after.length === 0 || /^\s/.test(after) ? "" : " ";
+    const next = `${before}${padBefore}${uid}${padAfter}${after}`;
+    setBody(next);
+    setPickerOpen(false);
+    setAssetQuery("");
+    // Restore cursor after the inserted reference.
+    queueMicrotask(() => {
+      ta.focus();
+      const cursor = before.length + padBefore.length + uid.length;
+      ta.setSelectionRange(cursor, cursor);
     });
   }
 
@@ -64,6 +76,7 @@ export function CommentComposer({ entityType, entityId }: Props) {
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <textarea
+        ref={textareaRef}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         rows={3}
@@ -71,31 +84,19 @@ export function CommentComposer({ entityType, entityId }: Props) {
         className="block w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
       />
 
-      <div className="flex flex-wrap gap-2">
-        {QUICK_PHRASES.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => appendPhrase(p)}
-            className="min-h-11 rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200 hover:border-blue-500/50 hover:bg-slate-800 active:bg-slate-700"
-          >
-            {p}
-          </button>
-        ))}
-      </div>
-
-      {errorMessage && (
-        <p className="rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {errorMessage}
-        </p>
-      )}
-
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setPickerOpen((v) => !v)}
+          className="min-h-11 rounded-full border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 hover:border-blue-500/50 hover:bg-slate-800"
+        >
+          {pickerOpen ? "Close" : "+ Reference an asset"}
+        </button>
         {body && (
           <button
             type="button"
             onClick={() => setBody("")}
-            className="btn-ghost min-h-11 px-4 py-2 text-sm"
+            className="text-xs text-slate-400 hover:text-red-300 hover:underline"
           >
             Clear
           </button>
@@ -108,6 +109,45 @@ export function CommentComposer({ entityType, entityId }: Props) {
           {create.isPending ? "Posting…" : "Post comment"}
         </button>
       </div>
+
+      {pickerOpen && (
+        <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 space-y-2">
+          <input
+            value={assetQuery}
+            onChange={(e) => setAssetQuery(e.target.value)}
+            placeholder="Type asset UID, material, manufacturer…"
+            className="block w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+            autoFocus
+          />
+          <div className="flex flex-wrap gap-2">
+            {assets.data?.items.slice(0, 20).map((a) => (
+              <button
+                key={a.asset_uid}
+                type="button"
+                onClick={() => insertReference(a.asset_uid)}
+                className="min-h-11 rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200 hover:border-blue-500/50 hover:bg-slate-800"
+              >
+                <span className="font-mono">{a.asset_uid}</span>
+                <span className="ml-2 text-xs text-slate-400">{a.class_code}</span>
+              </button>
+            ))}
+            {assets.data && assets.data.items.length === 0 && assetQuery && (
+              <p className="text-xs text-slate-500">No matching assets.</p>
+            )}
+            {!assetQuery && (
+              <p className="text-xs text-slate-500">
+                Start typing to search.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {errorMessage && (
+        <p className="rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {errorMessage}
+        </p>
+      )}
     </form>
   );
 }

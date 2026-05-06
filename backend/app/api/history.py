@@ -58,8 +58,7 @@ def list_history() -> Any:
         select(AuditLog)
         .where(
             or_(
-                (AuditLog.entity_type.in_(audit_types))
-                & (AuditLog.entity_id == str(entity_id)),
+                (AuditLog.entity_type.in_(audit_types)) & (AuditLog.entity_id == str(entity_id)),
                 (AuditLog.entity_type == "EntityLink")
                 & (
                     (AuditLog.before["source"].astext == related_target)
@@ -79,18 +78,14 @@ def list_history() -> Any:
     user_ids = {r.user_id for r in rows if r.user_id is not None}
     user_names: dict[int, str] = {}
     if user_ids:
-        users = db.session.scalars(
-            select(User).where(User.id.in_(user_ids))
-        ).all()
+        users = db.session.scalars(select(User).where(User.id.in_(user_ids))).all()
         user_names = {u.id: u.full_name for u in users}
 
     items = [
         {
             "id": r.id,
             "occurred_at": (
-                r.occurred_at.isoformat()
-                if isinstance(r.occurred_at, datetime)
-                else r.occurred_at
+                r.occurred_at.isoformat() if isinstance(r.occurred_at, datetime) else r.occurred_at
             ),
             "actor": user_names.get(r.user_id) if r.user_id else None,
             "actor_id": r.user_id,

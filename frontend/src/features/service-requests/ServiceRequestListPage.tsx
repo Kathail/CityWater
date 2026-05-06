@@ -147,7 +147,7 @@ export function ServiceRequestListPage() {
                 <td className="px-3 py-2">{sr.domain}</td>
                 <td className="px-3 py-2">{sr.priority}</td>
                 <td className="px-3 py-2">{sr.caller_name ?? "—"}</td>
-                <td className="px-3 py-2 max-w-xs truncate">{sr.address ?? "—"}</td>
+                <td className="px-3 py-2 max-w-xs truncate">{sr.reported_address ?? "—"}</td>
                 <td className="px-3 py-2 text-slate-400">
                   {new Date(sr.reported_at).toLocaleString()}
                 </td>

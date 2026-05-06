@@ -5,9 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-CommentEntityType = Literal[
-    "work_order", "inspection", "service_request", "schedule"
-]
+CommentEntityType = Literal["work_order", "inspection", "service_request", "schedule"]
 
 
 class CommentRead(BaseModel):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -9,6 +9,7 @@ from sqlalchemy import (
     BigInteger,
     CheckConstraint,
     Date,
+    DateTime,
     ForeignKey,
     Identity,
     Integer,
@@ -78,5 +79,13 @@ class Asset(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, AuditableM
         JSONB, nullable=False, default=dict, server_default="{}"
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Cached reverse-geocoded address. Refreshed by the geocode-tick worker
+    # whenever the trigger enqueues a job (asset insert / geom update).
+    # Reads through this column rather than re-geocoding on the hot path.
+    address_cached: Mapped[str | None] = mapped_column(Text, nullable=True)
+    address_cached_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     asset_class: Mapped[AssetClass] = relationship("AssetClass", lazy="joined")
