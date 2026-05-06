@@ -70,7 +70,7 @@ export function WorkOrderDetailPage() {
             </p>
             <AreaChips
               areas={wo.areas}
-              taskDomain={taskQuery.data?.default_domain}
+              domain={taskQuery.data?.default_domain}
               className="mt-2"
             />
           </div>

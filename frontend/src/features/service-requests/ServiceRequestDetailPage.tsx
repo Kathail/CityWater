@@ -98,7 +98,7 @@ export function ServiceRequestDetailPage() {
           </p>
           <AreaChips
             areas={data.areas}
-            taskDomain={taskQuery.data?.default_domain ?? data.domain}
+            domain={taskQuery.data?.default_domain ?? data.domain}
             className="mt-2"
           />
         </div>

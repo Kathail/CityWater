@@ -22,14 +22,18 @@ const KIND_LABEL: Record<Area["kind"], string> = {
 
 export function AreaChips({
   areas,
-  taskDomain,
+  domain,
   className,
 }: {
   areas: Area[] | undefined;
-  taskDomain?: string | null;
+  /** Domain that determines which system kind is relevant. Read from
+   * the active task definition for WO/SR, or from the asset's own
+   * `domain` field for an asset. `null`/`"any"` shows only the
+   * maintenance district. */
+  domain?: string | null;
   className?: string;
 }) {
-  const primaryKind = systemKindForDomain(taskDomain);
+  const primaryKind = systemKindForDomain(domain);
   const visible = (areas ?? []).filter(
     (a) => a.kind === "maintenance" || a.kind === primaryKind,
   );
