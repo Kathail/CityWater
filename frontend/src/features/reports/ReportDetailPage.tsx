@@ -57,18 +57,14 @@ export function ReportDetailPage() {
         <div className="flex gap-2">
           {reportSlug && (
             <>
-              <a
-                href={downloadUrl(reportSlug, "csv", params)}
-                className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
-                download
-              >
+              {/* Download buttons must stay anchors (not <Button>) so the
+                  browser handles the download attribute + content-disposition;
+                  match the .btn-* utility styling for visual consistency
+                  with the rest of the app. */}
+              <a href={downloadUrl(reportSlug, "csv", params)} className="btn-ghost" download>
                 Download CSV
               </a>
-              <a
-                href={downloadUrl(reportSlug, "pdf", params)}
-                className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-400"
-                download
-              >
+              <a href={downloadUrl(reportSlug, "pdf", params)} className="btn-primary" download>
                 Download PDF
               </a>
             </>

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/States";
+import { StatusPill as SharedStatusPill, type PillTone } from "../../components/StatusPill";
 import { type TaskListResponse, listTaskDefinitions } from "./api";
 
 /**
@@ -78,15 +79,12 @@ export function TaskCatalog() {
   );
 }
 
+const TASK_STATUS_TONE: Record<string, PillTone> = {
+  draft: "muted",
+  active: "success",
+  archived: "neutral",
+};
+
 function StatusPill({ status }: { status: string }) {
-  const cls: Record<string, string> = {
-    draft: "bg-slate-700/40 text-slate-300 ring-1 ring-slate-600/40",
-    active: "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/30",
-    archived: "bg-slate-800 text-slate-500 ring-1 ring-slate-700",
-  };
-  return (
-    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${cls[status] ?? cls.draft}`}>
-      {status}
-    </span>
-  );
+  return <SharedStatusPill tone={TASK_STATUS_TONE[status] ?? "muted"}>{status}</SharedStatusPill>;
 }

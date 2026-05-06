@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
+import { StatusPill as SharedStatusPill, type PillTone } from "../../components/StatusPill";
 import { formatDateTime } from "../../lib/format";
 import { ApiError } from "../../lib/apiClient";
 import {
@@ -197,28 +198,21 @@ export function AdminInvitationsPage() {
 }
 
 function StatusPill({ inv }: { inv: InvitationRead }) {
+  let tone: PillTone = "info";
+  let label = "pending";
   if (inv.accepted_at) {
-    return (
-      <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-300">
-        accepted
-      </span>
-    );
-  }
-  if (inv.revoked_at) {
-    return (
-      <span className="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-300">revoked</span>
-    );
-  }
-  if (new Date(inv.expires_at) < new Date()) {
-    return (
-      <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-200 ring-1 ring-amber-500/30">
-        expired
-      </span>
-    );
+    tone = "success";
+    label = "accepted";
+  } else if (inv.revoked_at) {
+    tone = "muted";
+    label = "revoked";
+  } else if (new Date(inv.expires_at) < new Date()) {
+    tone = "warning";
+    label = "expired";
   }
   return (
-    <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-xs text-blue-200 ring-1 ring-blue-500/30">
-      pending
-    </span>
+    <SharedStatusPill tone={tone} dot>
+      {label}
+    </SharedStatusPill>
   );
 }
