@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { ActivityTimeline } from "../activity/ActivityTimeline";
 import { LinkedItems } from "../links/LinkedItems";
+import { getTaskDefinition, type TaskDefinitionRead } from "../tasks/api";
 import {
   addTask,
   logMaterial,
@@ -36,6 +37,13 @@ export function WorkOrderDetailPage() {
       queryClient.setQueryData(["work-order", woNumber], next);
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
     },
+  });
+
+  const taskCode = woQuery.data?.task_definition_code ?? null;
+  const taskQuery = useQuery<TaskDefinitionRead, Error>({
+    queryKey: ["task-definition", taskCode],
+    queryFn: () => getTaskDefinition(taskCode!),
+    enabled: !!taskCode,
   });
 
   if (woQuery.isLoading) return <div className="p-8 text-slate-400">Loading…</div>;
@@ -101,12 +109,47 @@ export function WorkOrderDetailPage() {
         )}
       </Section>
 
+      {taskQuery.data && (
+        <Section title="Task">
+          <div className="flex items-baseline justify-between gap-3">
+            <div>
+              <p className="text-base text-slate-100">{taskQuery.data.title}</p>
+              {taskQuery.data.summary && (
+                <p className="mt-1 text-xs text-slate-400">{taskQuery.data.summary}</p>
+              )}
+            </div>
+            <Link
+              to={`/${slug}/admin/task-definitions`}
+              className="font-mono text-xs text-slate-400 hover:text-blue-300 hover:underline"
+            >
+              {taskQuery.data.code} · v{taskQuery.data.version}
+            </Link>
+          </div>
+          {Object.keys(wo.task_data).length > 0 && (
+            <details className="mt-3 text-xs">
+              <summary className="cursor-pointer text-slate-400 hover:text-slate-200">
+                Task data ({Object.keys(wo.task_data).length} field
+                {Object.keys(wo.task_data).length === 1 ? "" : "s"})
+              </summary>
+              <pre className="mt-2 overflow-x-auto rounded bg-slate-950/60 p-2 text-[11px] text-slate-300">
+                {JSON.stringify(wo.task_data, null, 2)}
+              </pre>
+            </details>
+          )}
+        </Section>
+      )}
+
       <TasksSection wo={wo} />
       <TimeSection wo={wo} />
       <MaterialsSection wo={wo} />
       <AttachmentsSection wo={wo} />
       <LinkedItems entityType="work_order" entityId={wo.id} />
-      <ActivityTimeline entityType="work_order" entityId={wo.id} />
+      <ActivityTimeline
+        entityType="work_order"
+        entityId={wo.id}
+        smartComments={taskQuery.data?.smart_comments}
+        taskData={wo.task_data}
+      />
     </div>
   );
 }

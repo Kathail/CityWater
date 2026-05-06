@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ApiError } from "../../lib/apiClient";
 import { useAuth } from "../auth/useAuth";
+import type { SmartComment } from "../tasks/api";
 import { type ActivityEntityType, type CommentRead, type HistoryEvent } from "./api";
 import { CommentComposer } from "./CommentComposer";
 import {
@@ -13,13 +14,23 @@ import {
 interface Props {
   entityType: ActivityEntityType;
   entityId: number;
+  /** When the parent entity is task-driven, pass the task's smart_comments
+   * and the operator's current task_data — chips will render in the comment
+   * composer. */
+  smartComments?: SmartComment[];
+  taskData?: Record<string, unknown>;
 }
 
 type TimelineRow =
   | { kind: "comment"; at: string; data: CommentRead }
   | { kind: "event"; at: string; data: HistoryEvent };
 
-export function ActivityTimeline({ entityType, entityId }: Props) {
+export function ActivityTimeline({
+  entityType,
+  entityId,
+  smartComments,
+  taskData,
+}: Props) {
   const comments = useComments(entityType, entityId);
   const history = useHistory(entityType, entityId);
 
@@ -45,7 +56,12 @@ export function ActivityTimeline({ entityType, entityId }: Props) {
       </h2>
 
       <div className="mt-4 rounded border border-slate-800 bg-slate-950/40 p-4">
-        <CommentComposer entityType={entityType} entityId={entityId} />
+        <CommentComposer
+          entityType={entityType}
+          entityId={entityId}
+          smartComments={smartComments}
+          taskData={taskData}
+        />
       </div>
 
       {(comments.isLoading || history.isLoading) && (

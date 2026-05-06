@@ -102,6 +102,12 @@ def _wo_payload(wo: WorkOrder) -> dict[str, Any]:
     if wo.asset_id:
         asset = db.session.get(Asset, wo.asset_id)
         asset_uid = asset.asset_uid if asset else None
+    task_definition_code: str | None = None
+    if wo.task_definition_id is not None:
+        from app.models import TaskDefinition
+
+        td = db.session.get(TaskDefinition, wo.task_definition_id)
+        task_definition_code = td.code if td else None
     payload = {
         "id": wo.id,
         "wo_number": wo.wo_number,
@@ -114,6 +120,8 @@ def _wo_payload(wo: WorkOrder) -> dict[str, Any]:
         "asset_uid": asset_uid,
         "location": wkb_to_geojson(wo.location),
         "template_id": wo.template_id,
+        "task_definition_code": task_definition_code,
+        "task_data": wo.task_data or {},
         "scheduled_for": wo.scheduled_for.isoformat() if wo.scheduled_for else None,
         "due_by": wo.due_by.isoformat() if wo.due_by else None,
         "started_at": wo.started_at.isoformat() if wo.started_at else None,

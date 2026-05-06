@@ -93,6 +93,8 @@ export interface WorkOrderDetail extends WorkOrderListItem {
   reported_by: number | null;
   resolution: string | null;
   attrs: Record<string, unknown>;
+  task_definition_code: string | null;
+  task_data: Record<string, unknown>;
   updated_at: string;
   tasks: Task[];
   time_logs: TimeLog[];

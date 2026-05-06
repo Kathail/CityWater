@@ -97,6 +97,8 @@ class WorkOrderRead(BaseModel):
     crew_id: int | None = None
     resolution: str | None = None
     attrs: dict[str, Any] = Field(default_factory=dict)
+    task_definition_code: str | None = None
+    task_data: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
     tasks: list[TaskRead] = Field(default_factory=list)
