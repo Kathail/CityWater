@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { ApiError } from "../../lib/apiClient";
+import { Alert } from "../../components/Alert";
+import { Button } from "../../components/Button";
+import { translateApiError } from "../../lib/translateApiError";
 import { createInspection, type InspectionKind, type InspectionRead } from "./api";
 import { CatchBasinForm } from "./forms/CatchBasinForm";
 import { CctvForm } from "./forms/CctvForm";
@@ -53,9 +55,7 @@ export function CreateInspectionDialog({ onClose }: Props) {
       queryClient.invalidateQueries({ queryKey: ["inspections"] });
       navigate(`/${slug}/inspections/${ins.inspection_number}`);
     },
-    onError: (err) => {
-      setErrorMessage(err instanceof ApiError ? err.message : err.message);
-    },
+    onError: (err) => setErrorMessage(translateApiError(err)),
   });
 
   function onSubmit(e: FormEvent) {
@@ -64,21 +64,37 @@ export function CreateInspectionDialog({ onClose }: Props) {
     create.mutate();
   }
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !create.isPending) onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, create.isPending]);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="new-inspection-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !create.isPending) onClose();
+      }}
     >
       <form
         onSubmit={onSubmit}
         className="w-full max-w-2xl rounded-lg bg-slate-900 p-5 shadow-xl space-y-3 max-h-[90vh] overflow-y-auto"
       >
         <header className="flex items-start justify-between">
-          <h2 id="new-inspection-title" className="text-lg font-semibold text-slate-100">
-            New inspection
-          </h2>
+          <div>
+            <h2 id="new-inspection-title" className="text-lg font-semibold text-slate-100">
+              New inspection
+            </h2>
+            <p className="text-xs text-slate-500">
+              Tenant: <span className="text-slate-300">{slug}</span>
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -171,27 +187,15 @@ export function CreateInspectionDialog({ onClose }: Props) {
           />
         </label>
 
-        {errorMessage && (
-          <p role="alert" className="text-sm text-red-400">
-            {errorMessage}
-          </p>
-        )}
+        {errorMessage && <Alert>{errorMessage}</Alert>}
 
         <div className="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
-          >
+          <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={create.isPending}
-            className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-400 disabled:opacity-50"
-          >
+          </Button>
+          <Button type="submit" disabled={create.isPending}>
             {create.isPending ? "Creating…" : "Create"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

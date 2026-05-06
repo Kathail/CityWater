@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { ApiError } from "../../lib/apiClient";
+import { Alert } from "../../components/Alert";
+import { Button } from "../../components/Button";
+import { translateApiError } from "../../lib/translateApiError";
 import {
   createWorkOrder,
   type WoCategory,
@@ -60,9 +62,7 @@ export function CreateWorkOrderDialog({ onClose }: Props) {
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       navigate(`/${slug}/work-orders/${wo.wo_number}`);
     },
-    onError: (err) => {
-      setErrorMessage(err instanceof ApiError ? err.message : err.message);
-    },
+    onError: (err) => setErrorMessage(translateApiError(err)),
   });
 
   function onSubmit(e: FormEvent) {
@@ -71,21 +71,37 @@ export function CreateWorkOrderDialog({ onClose }: Props) {
     create.mutate();
   }
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !create.isPending) onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, create.isPending]);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="new-wo-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !create.isPending) onClose();
+      }}
     >
       <form
         onSubmit={onSubmit}
         className="w-full max-w-lg rounded-lg bg-slate-900 p-5 shadow-xl space-y-3"
       >
         <header className="flex items-start justify-between">
-          <h2 id="new-wo-title" className="text-lg font-semibold text-slate-100">
-            New work order
-          </h2>
+          <div>
+            <h2 id="new-wo-title" className="text-lg font-semibold text-slate-100">
+              New work order
+            </h2>
+            <p className="text-xs text-slate-500">
+              Tenant: <span className="text-slate-300">{slug}</span>
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -97,11 +113,17 @@ export function CreateWorkOrderDialog({ onClose }: Props) {
         </header>
 
         <label className="block">
-          <span className="text-xs text-slate-300">Title</span>
+          <span className="text-xs text-slate-300">
+            Title{" "}
+            <span className="text-red-400" aria-hidden="true">
+              *
+            </span>
+          </span>
           <input
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
             required
+            aria-required="true"
             className="mt-1 block w-full rounded border border-slate-700 px-2 py-1 text-sm"
           />
         </label>
@@ -186,27 +208,15 @@ export function CreateWorkOrderDialog({ onClose }: Props) {
           />
         </label>
 
-        {errorMessage && (
-          <p role="alert" className="text-sm text-red-400">
-            {errorMessage}
-          </p>
-        )}
+        {errorMessage && <Alert>{errorMessage}</Alert>}
 
         <div className="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
-          >
+          <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={!form.title || create.isPending}
-            className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-400 disabled:opacity-50"
-          >
+          </Button>
+          <Button type="submit" disabled={!form.title || create.isPending}>
             {create.isPending ? "Creating…" : "Create"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

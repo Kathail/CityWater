@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "../../lib/apiClient";
+import { Alert } from "../../components/Alert";
+import { Button } from "../../components/Button";
+import { translateApiError } from "../../lib/translateApiError";
 import { importAssets, type ImportResult } from "./api";
 
 interface Props {
@@ -23,9 +25,7 @@ export function ImportDialog({ onClose }: Props) {
       queryClient.invalidateQueries({ queryKey: ["assets"] });
       queryClient.invalidateQueries({ queryKey: ["asset"] });
     },
-    onError: (err) => {
-      setErrorMessage(err instanceof ApiError ? err.message : err.message);
-    },
+    onError: (err) => setErrorMessage(translateApiError(err)),
   });
 
   function onSubmit(e: FormEvent) {
@@ -34,12 +34,24 @@ export function ImportDialog({ onClose }: Props) {
     upload.mutate();
   }
 
+  // Esc to close (when not in the middle of an upload).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !upload.isPending) onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, upload.isPending]);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !upload.isPending) onClose();
+      }}
     >
       <form
         onSubmit={onSubmit}
@@ -92,11 +104,7 @@ export function ImportDialog({ onClose }: Props) {
           </label>
         </div>
 
-        {errorMessage && (
-          <p role="alert" className="text-sm text-red-400">
-            {errorMessage}
-          </p>
-        )}
+        {errorMessage && <Alert>{errorMessage}</Alert>}
 
         {upload.data && (
           <div className="rounded border border-slate-800 bg-slate-800/50 p-3 space-y-2">
@@ -129,21 +137,13 @@ export function ImportDialog({ onClose }: Props) {
         )}
 
         <div className="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
-          >
+          <Button type="button" variant="ghost" onClick={onClose}>
             {upload.data ? "Close" : "Cancel"}
-          </button>
+          </Button>
           {!upload.data && (
-            <button
-              type="submit"
-              disabled={!file || upload.isPending}
-              className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-400 disabled:opacity-50"
-            >
+            <Button type="submit" disabled={!file || upload.isPending}>
               {upload.isPending ? "Uploading…" : "Import"}
-            </button>
+            </Button>
           )}
         </div>
       </form>

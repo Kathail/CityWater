@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { ApiError } from "../../lib/apiClient";
+import { Alert } from "../../components/Alert";
+import { Button } from "../../components/Button";
+import { translateApiError } from "../../lib/translateApiError";
 import { importPacp, type InspectionRead } from "./api";
 
 interface Props {
@@ -29,9 +31,7 @@ export function ImportPacpDialog({ onClose }: Props) {
       queryClient.invalidateQueries({ queryKey: ["inspections"] });
       navigate(`/${slug}/inspections/${ins.inspection_number}`);
     },
-    onError: (err) => {
-      setErrorMessage(err instanceof ApiError ? err.message : err.message);
-    },
+    onError: (err) => setErrorMessage(translateApiError(err)),
   });
 
   function onSubmit(e: FormEvent) {
@@ -40,12 +40,23 @@ export function ImportPacpDialog({ onClose }: Props) {
     upload.mutate();
   }
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !upload.isPending) onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, upload.isPending]);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-pacp-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !upload.isPending) onClose();
+      }}
     >
       <form
         onSubmit={onSubmit}
@@ -101,27 +112,15 @@ export function ImportPacpDialog({ onClose }: Props) {
           </label>
         </div>
 
-        {errorMessage && (
-          <p role="alert" className="text-sm text-red-400">
-            {errorMessage}
-          </p>
-        )}
+        {errorMessage && <Alert>{errorMessage}</Alert>}
 
         <div className="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
-          >
+          <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={!file || upload.isPending}
-            className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-400 disabled:opacity-50"
-          >
+          </Button>
+          <Button type="submit" disabled={!file || upload.isPending}>
             {upload.isPending ? "Importing…" : "Import"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
