@@ -1,12 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { logout } from "../features/auth/api";
 import { ME_QUERY_KEY, useAuth } from "../features/auth/useAuth";
+import { ConflictDrawer } from "./ConflictDrawer";
+import { OfflineBanner } from "./OfflineBanner";
 
 export function TenantShell() {
   const { user, tenant } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [conflictsOpen, setConflictsOpen] = useState(false);
 
   const signOut = useMutation({
     mutationFn: logout,
@@ -64,8 +68,12 @@ export function TenantShell() {
         </div>
       </aside>
       <main className="flex-1 relative overflow-auto">
+        <OfflineBanner onOpenConflicts={() => setConflictsOpen(true)} />
         <Outlet />
       </main>
+      {conflictsOpen && (
+        <ConflictDrawer onClose={() => setConflictsOpen(false)} />
+      )}
     </div>
   );
 }
