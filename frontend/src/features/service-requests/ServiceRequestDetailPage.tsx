@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../../lib/apiClient";
 import { ActivityTimeline } from "../activity/ActivityTimeline";
@@ -8,8 +8,8 @@ import { ProcedureRunner } from "../tasks/ProcedureRunner";
 import { getTaskDefinition, type TaskDefinitionRead } from "../tasks/api";
 import { TaskFormRenderer, type TaskData } from "../tasks/TaskFormRenderer";
 import { DispatchDialog } from "./DispatchDialog";
-import type { SrClosureReason } from "./api";
-import { useServiceRequest, useUpdateServiceRequest } from "./hooks";
+import type { ServiceRequestRead, SrClosureReason } from "./api";
+import { SR_DETAIL_KEY, useServiceRequest, useUpdateServiceRequest } from "./hooks";
 
 const CLOSURE_REASONS: SrClosureReason[] = [
   "resolved",
@@ -37,24 +37,25 @@ export function ServiceRequestDetailPage() {
     enabled: !!taskCode,
   });
 
-  // Local copy of task_data so the form drives chip rendering without
-  // round-tripping through the server on every keystroke.
-  const [taskData, setTaskData] = useState<TaskData>(query.data?.task_data ?? {});
+  const queryClient = useQueryClient();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
-
-  useEffect(() => {
-    if (query.data?.task_data) setTaskData(query.data.task_data);
-  }, [query.data?.task_data]);
 
   if (query.isLoading) return <div className="p-8 text-slate-400">Loading…</div>;
   if (query.isError) return <div className="p-8 text-red-400">Failed to load.</div>;
   if (!query.data) return null;
 
   const data = query.data;
+  const taskData = data.task_data;
 
   function handleTaskChange(next: TaskData) {
-    setTaskData(next);
+    // Optimistic cache write — instant UI update for the form, the
+    // procedure checkboxes, the smart-comment chips, and the checklist
+    // draft. Cache is the single source of truth for task_data.
+    queryClient.setQueryData<ServiceRequestRead>(
+      [SR_DETAIL_KEY, sr],
+      (prev) => (prev ? { ...prev, task_data: next } : prev),
+    );
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       update.mutate(

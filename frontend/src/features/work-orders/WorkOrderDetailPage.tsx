@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { ActivityTimeline } from "../activity/ActivityTimeline";
@@ -113,15 +113,7 @@ export function WorkOrderDetailPage() {
       </Section>
 
       {taskQuery.data && (
-        <TaskSection
-          task={taskQuery.data}
-          wo={wo}
-          slug={slug}
-          onChange={(next) => queryClient.setQueryData(
-            ["work-order", woNumber],
-            { ...wo, task_data: next },
-          )}
-        />
+        <TaskSection task={taskQuery.data} wo={wo} slug={slug} />
       )}
 
       <TasksSection wo={wo} />
@@ -149,32 +141,27 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 /**
- * Renders the task definition's form so the operator can fill in
- * task_data. Local state drives the UI (so the smart-comment chips on
- * the activity composer update reactively as the operator types). A
- * debounced PATCH persists changes to the backend.
+ * Renders the task definition's form + procedure runner. State flows
+ * top-down from the React Query cache: every change writes the new
+ * task_data to the cache (via `queryClient.setQueryData`) so the chips
+ * + checklist react instantly, and a debounced PATCH persists to the
+ * server. There is intentionally no local state copy of task_data —
+ * that pattern was creating sync bugs where local state and the cache
+ * could diverge.
  */
 function TaskSection({
   task,
   wo,
   slug,
-  onChange,
 }: {
   task: TaskDefinitionRead;
   wo: WorkOrderDetail;
   slug: string | undefined;
-  onChange: (next: TaskData) => void;
 }) {
   const queryClient = useQueryClient();
-  const [data, setData] = useState<TaskData>(wo.task_data);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // If the WO refetches with new task_data, sync local state.
-  useEffect(() => {
-    setData(wo.task_data);
-  }, [wo.task_data]);
 
   const save = useMutation({
     mutationFn: (next: TaskData) =>
@@ -188,8 +175,13 @@ function TaskSection({
   });
 
   function handleChange(next: TaskData) {
-    setData(next);
-    onChange(next); // keeps chip render in lockstep with the form
+    // Optimistic cache write — instant UI update for the form, the
+    // procedure checkboxes, the smart-comment chips, and the checklist
+    // draft (all of which read wo.task_data through the same cache).
+    queryClient.setQueryData<WorkOrderDetail>(
+      ["work-order", wo.wo_number],
+      (prev) => (prev ? { ...prev, task_data: next } : prev),
+    );
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => save.mutate(next), 600);
   }
@@ -213,13 +205,21 @@ function TaskSection({
 
       {task.form.length > 0 && (
         <div className="mt-4">
-          <TaskFormRenderer task={task} value={data} onChange={handleChange} />
+          <TaskFormRenderer
+            task={task}
+            value={wo.task_data}
+            onChange={handleChange}
+          />
         </div>
       )}
 
       {(task.procedure?.steps?.length ?? 0) > 0 && (
         <div className="mt-4">
-          <ProcedureRunner task={task} taskData={data} onChange={handleChange} />
+          <ProcedureRunner
+            task={task}
+            taskData={wo.task_data}
+            onChange={handleChange}
+          />
         </div>
       )}
 
@@ -268,7 +268,7 @@ function TasksSection({ wo }: { wo: WorkOrderDetail }) {
   });
 
   return (
-    <Section title="Tasks">
+    <Section title="Sub-tasks">
       <ul className="space-y-1">
         {wo.tasks.map((t) => (
           <li key={t.id} className="flex items-center gap-2 text-sm">

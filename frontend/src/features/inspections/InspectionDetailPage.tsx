@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { ActivityTimeline } from "../activity/ActivityTimeline";
 import { LinkedItems } from "../links/LinkedItems";
 import { ProcedureRunner } from "../tasks/ProcedureRunner";
 import { getTaskDefinition, type TaskDefinitionRead } from "../tasks/api";
 import { TaskFormRenderer, type TaskData } from "../tasks/TaskFormRenderer";
+import type { InspectionRead } from "./api";
 import { useInspection, useUpdateInspection } from "./hooks";
 
 export function InspectionDetailPage() {
   const { slug, n } = useParams<{ slug: string; n: string }>();
   const insQuery = useInspection(n);
   const update = useUpdateInspection(n ?? "");
+  const queryClient = useQueryClient();
 
   const taskCode = insQuery.data?.task_definition_code ?? null;
   const taskQuery = useQuery<TaskDefinitionRead, Error>({
@@ -20,24 +22,25 @@ export function InspectionDetailPage() {
     enabled: !!taskCode,
   });
 
-  const [taskData, setTaskData] = useState<TaskData>(insQuery.data?.task_data ?? {});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (insQuery.data?.task_data) setTaskData(insQuery.data.task_data);
-  }, [insQuery.data?.task_data]);
+
+  if (insQuery.isLoading) return <div className="p-8 text-slate-400">Loading…</div>;
+  if (insQuery.error) return <div className="p-8 text-red-400">{insQuery.error.message}</div>;
+  const ins = insQuery.data!;
+  const taskData = ins.task_data;
 
   function handleTaskChange(next: TaskData) {
-    setTaskData(next);
+    // Optimistic cache write — instant UI update; debounced PATCH persists.
+    queryClient.setQueryData<InspectionRead>(
+      ["inspection", n],
+      (prev) => (prev ? { ...prev, task_data: next } : prev),
+    );
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       update.mutate({ task_data: next }, { onSuccess: () => setSavedAt(new Date()) });
     }, 600);
   }
-
-  if (insQuery.isLoading) return <div className="p-8 text-slate-400">Loading…</div>;
-  if (insQuery.error) return <div className="p-8 text-red-400">{insQuery.error.message}</div>;
-  const ins = insQuery.data!;
 
   return (
     <div className="p-8 max-w-3xl space-y-6">
