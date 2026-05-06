@@ -82,6 +82,7 @@ export interface Attachment {
 }
 
 export interface WorkOrderDetail extends WorkOrderListItem {
+  id: number;
   description: string | null;
   location: Record<string, unknown> | null;
   template_id: number | null;

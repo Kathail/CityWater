@@ -62,6 +62,7 @@ def _payload(sr: ServiceRequest) -> dict[str, Any]:
         parent = db.session.get(ServiceRequest, sr.duplicate_of_id)
         dup_sr_number = parent.sr_number if parent else None
     return {
+        "id": sr.id,
         "sr_number": sr.sr_number,
         "category": sr.category,
         "domain": sr.domain,

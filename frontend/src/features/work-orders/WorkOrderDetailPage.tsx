@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
+import { ActivityTimeline } from "../activity/ActivityTimeline";
+import { LinkedItems } from "../links/LinkedItems";
 import {
   addTask,
   logMaterial,
@@ -103,6 +105,8 @@ export function WorkOrderDetailPage() {
       <TimeSection wo={wo} />
       <MaterialsSection wo={wo} />
       <AttachmentsSection wo={wo} />
+      <LinkedItems entityType="work_order" entityId={wo.id} />
+      <ActivityTimeline entityType="work_order" entityId={wo.id} />
     </div>
   );
 }
@@ -188,22 +192,55 @@ function TasksSection({ wo }: { wo: WorkOrderDetail }) {
   );
 }
 
+/** Tablet-first time-log composer.
+ *
+ * Field crews mostly want to record "I worked 1h on this" not punch a
+ * specific clock. Default UX:
+ *   - Day chip (Today / Yesterday)
+ *   - Duration chip (15m / 30m / 1h / 2h / 4h / 8h)
+ *   - One tap on "Log time" stamps a row anchored to *now* minus duration.
+ * Power users can flip to "Manual" to set explicit start/end ranges.
+ */
 function TimeSection({ wo }: { wo: WorkOrderDetail }) {
   const queryClient = useQueryClient();
+  const [day, setDay] = useState<"today" | "yesterday">("today");
+  const [durationMins, setDurationMins] = useState<number>(60);
+  const [manualMode, setManualMode] = useState(false);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+
   const log = useMutation({
-    mutationFn: () =>
-      logTime(wo.wo_number, {
-        started_at: new Date(start).toISOString(),
-        ended_at: new Date(end).toISOString(),
-      }),
+    mutationFn: (range: { started_at: string; ended_at: string }) =>
+      logTime(wo.wo_number, range),
     onSuccess: () => {
       setStart("");
       setEnd("");
       queryClient.invalidateQueries({ queryKey: ["work-order", wo.wo_number] });
     },
   });
+
+  function quickLog() {
+    const ended = new Date();
+    if (day === "yesterday") {
+      // Anchor to 4pm yesterday — typical end-of-shift, mirrors paper habit.
+      ended.setDate(ended.getDate() - 1);
+      ended.setHours(16, 0, 0, 0);
+    }
+    const started = new Date(ended.getTime() - durationMins * 60 * 1000);
+    log.mutate({
+      started_at: started.toISOString(),
+      ended_at: ended.toISOString(),
+    });
+  }
+
+  function manualLog(e: React.FormEvent) {
+    e.preventDefault();
+    if (!start || !end) return;
+    log.mutate({
+      started_at: new Date(start).toISOString(),
+      ended_at: new Date(end).toISOString(),
+    });
+  }
 
   const totalHours = wo.time_logs
     .reduce((acc, t) => acc + Number(t.hours_decimal || 0), 0)
@@ -222,40 +259,152 @@ function TimeSection({ wo }: { wo: WorkOrderDetail }) {
           ))}
         </ul>
       )}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (start && end) log.mutate();
-        }}
-        className="flex gap-2 items-end"
-      >
-        <label className="block">
-          <span className="text-xs text-slate-300">Start</span>
-          <input
-            type="datetime-local"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            className="mt-1 block rounded border border-slate-700 px-2 py-1 text-sm"
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs text-slate-300">End</span>
-          <input
-            type="datetime-local"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            className="mt-1 block rounded border border-slate-700 px-2 py-1 text-sm"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={!start || !end || log.isPending}
-          className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-400 disabled:opacity-50"
-        >
-          Log time
-        </button>
-      </form>
+
+      {!manualMode ? (
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">
+              Day
+            </p>
+            <div className="flex gap-2">
+              {(["today", "yesterday"] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDay(d)}
+                  className={`min-h-11 rounded-full px-4 py-2 text-sm capitalize transition-colors ${
+                    day === d
+                      ? "bg-blue-500/15 text-blue-200 ring-1 ring-blue-500/40"
+                      : "bg-slate-900 text-slate-300 ring-1 ring-slate-700 hover:bg-slate-800"
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">
+              Duration
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[15, 30, 60, 120, 240, 480].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setDurationMins(m)}
+                  className={`min-h-11 rounded-full px-4 py-2 text-sm transition-colors ${
+                    durationMins === m
+                      ? "bg-blue-500/15 text-blue-200 ring-1 ring-blue-500/40"
+                      : "bg-slate-900 text-slate-300 ring-1 ring-slate-700 hover:bg-slate-800"
+                  }`}
+                >
+                  {m < 60 ? `${m}m` : `${m / 60}h`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setManualMode(true)}
+              className="text-xs text-slate-400 hover:text-blue-300 hover:underline"
+            >
+              Manual range…
+            </button>
+            <button
+              type="button"
+              onClick={quickLog}
+              disabled={log.isPending}
+              className="btn-primary min-h-11 px-5 py-2 text-sm"
+            >
+              {log.isPending
+                ? "Logging…"
+                : `Log ${durationMins < 60 ? `${durationMins}m` : `${durationMins / 60}h`} ${day}`}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={manualLog} className="space-y-3">
+          <div className="flex flex-wrap gap-3">
+            <label className="block flex-1 min-w-48">
+              <span className="text-xs text-slate-300">Start</span>
+              <input
+                type="datetime-local"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                className="mt-1 block w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              />
+            </label>
+            <label className="block flex-1 min-w-48">
+              <span className="text-xs text-slate-300">End</span>
+              <input
+                type="datetime-local"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                className="mt-1 block w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                {
+                  label: "Now",
+                  fn: () => {
+                    setEnd(toLocalInput(new Date()));
+                  },
+                },
+                {
+                  label: "Started 1 h ago",
+                  fn: () => setStart(toLocalInput(new Date(Date.now() - 60 * 60_000))),
+                },
+                {
+                  label: "Started 30 m ago",
+                  fn: () => setStart(toLocalInput(new Date(Date.now() - 30 * 60_000))),
+                },
+              ] as const
+            ).map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                onClick={c.fn}
+                className="min-h-11 rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-between">
+            <button
+              type="button"
+              onClick={() => setManualMode(false)}
+              className="text-xs text-slate-400 hover:text-blue-300 hover:underline"
+            >
+              ← Quick log
+            </button>
+            <button
+              type="submit"
+              disabled={!start || !end || log.isPending}
+              className="btn-primary min-h-11 px-5 py-2 text-sm"
+            >
+              {log.isPending ? "Logging…" : "Log time"}
+            </button>
+          </div>
+        </form>
+      )}
     </Section>
+  );
+}
+
+function toLocalInput(d: Date): string {
+  // datetime-local needs YYYY-MM-DDTHH:MM in *local* time, not ISO.
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}`
   );
 }
 

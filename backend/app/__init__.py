@@ -13,8 +13,10 @@ from app.api.admin_audit import admin_audit_bp
 from app.api.asset_classes import asset_classes_bp
 from app.api.assets import assets_bp
 from app.api.auth import auth_bp
+from app.api.comments import comments_bp
 from app.api.crews import crews_bp
 from app.api.health import health_bp
+from app.api.history import history_bp
 from app.api.inspections import inspections_bp
 from app.api.invitations import invitations_bp
 from app.api.links import links_bp
@@ -128,6 +130,8 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(inspections_bp)
     app.register_blueprint(invitations_bp)
     app.register_blueprint(pacp_codes_bp)
+    app.register_blueprint(comments_bp)
+    app.register_blueprint(history_bp)
     app.register_blueprint(links_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(schedules_bp)

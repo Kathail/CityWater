@@ -18,6 +18,7 @@ import { InspectionDetailPage } from "./features/inspections/InspectionDetailPag
 import { InspectionListPage } from "./features/inspections/InspectionListPage";
 import { ReportDetailPage } from "./features/reports/ReportDetailPage";
 import { ReportsPage } from "./features/reports/ReportsPage";
+import { SchedulesPage } from "./features/schedules/SchedulesPage";
 import { ServiceRequestDetailPage } from "./features/service-requests/ServiceRequestDetailPage";
 import { ServiceRequestListPage } from "./features/service-requests/ServiceRequestListPage";
 import { WorkOrderDetailPage } from "./features/work-orders/WorkOrderDetailPage";
@@ -70,6 +71,7 @@ export function App() {
             <Route path="service-requests/:sr" element={<ServiceRequestDetailPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="reports/:reportSlug" element={<ReportDetailPage />} />
+            <Route path="schedules" element={<SchedulesPage />} />
             <Route path="admin" element={<AdminLayout />}>
               <Route index element={<AdminUsersPage />} />
               <Route path="users" element={<AdminUsersPage />} />

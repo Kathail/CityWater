@@ -2,6 +2,8 @@ from app.models.asset import VALID_STATUSES as ASSET_VALID_STATUSES
 from app.models.asset import Asset
 from app.models.asset_class import AssetClass
 from app.models.audit import AuditLog
+from app.models.comment import ENTITY_TYPES as COMMENT_ENTITY_TYPES
+from app.models.comment import Comment
 from app.models.crew import Crew, CrewMember
 from app.models.entity_link import (
     ENTITY_TYPES as LINK_ENTITY_TYPES,
@@ -40,6 +42,7 @@ from app.models.work_order import (
 
 __all__ = [
     "ASSET_VALID_STATUSES",
+    "COMMENT_ENTITY_TYPES",
     "INSPECTION_VALID_KINDS",
     "LINK_ENTITY_TYPES",
     "LINK_KINDS",
@@ -53,6 +56,7 @@ __all__ = [
     "AssetClass",
     "AuditLog",
     "AuditableMixin",
+    "Comment",
     "Crew",
     "CrewMember",
     "EntityLink",

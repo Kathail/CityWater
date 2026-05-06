@@ -1,4 +1,6 @@
 import { Link, useParams } from "react-router-dom";
+import { ActivityTimeline } from "../activity/ActivityTimeline";
+import { LinkedItems } from "../links/LinkedItems";
 import { useInspection } from "./hooks";
 
 export function InspectionDetailPage() {
@@ -71,6 +73,9 @@ export function InspectionDetailPage() {
           </dl>
         </section>
       )}
+
+      <LinkedItems entityType="inspection" entityId={ins.id} />
+      <ActivityTimeline entityType="inspection" entityId={ins.id} />
     </div>
   );
 }

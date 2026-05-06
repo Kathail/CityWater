@@ -20,6 +20,7 @@ export type SrClosureReason =
   | "deferred";
 
 export interface ServiceRequestRead {
+  id: number;
   sr_number: string;
   category: SrCategory;
   domain: SrDomain;

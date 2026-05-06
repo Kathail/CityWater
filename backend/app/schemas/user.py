@@ -15,6 +15,7 @@ class RoleRead(BaseModel):
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: int
     user_uid: str
     email: EmailStr
     full_name: str

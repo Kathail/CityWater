@@ -55,6 +55,7 @@ export function TenantShell() {
           {navLink(`/${slug}/work-orders`, "Work orders")}
           {navLink(`/${slug}/inspections`, "Inspections")}
           {navLink(`/${slug}/service-requests`, "Service requests")}
+          {navLink(`/${slug}/schedules`, "Schedules")}
           {navLink(`/${slug}/reports`, "Reports")}
           {user.roles.some((r) => r.code === "admin") &&
             navLink(`/${slug}/admin`, "Admin")}

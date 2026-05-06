@@ -6,6 +6,7 @@ export interface RoleOut {
 }
 
 export interface UserOut {
+  id: number;
   user_uid: string;
   email: string;
   full_name: string;

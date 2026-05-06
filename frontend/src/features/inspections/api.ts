@@ -9,6 +9,7 @@ export type InspectionKind =
   | "lift_station_round";
 
 export interface InspectionRead {
+  id: number;
   inspection_number: string;
   kind: InspectionKind;
   asset_uid: string | null;

@@ -108,6 +108,7 @@ class InspectionUpdate(BaseModel):
 
 
 class InspectionRead(BaseModel):
+    id: int
     inspection_number: str
     kind: InspectionKind
     asset_uid: str | None = None

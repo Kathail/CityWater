@@ -103,6 +103,7 @@ def _wo_payload(wo: WorkOrder) -> dict[str, Any]:
         asset = db.session.get(Asset, wo.asset_id)
         asset_uid = asset.asset_uid if asset else None
     payload = {
+        "id": wo.id,
         "wo_number": wo.wo_number,
         "type": wo.type,
         "category": wo.category,

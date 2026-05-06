@@ -76,6 +76,7 @@ class AttachmentRead(BaseModel):
 
 
 class WorkOrderRead(BaseModel):
+    id: int
     wo_number: str
     type: WoType
     category: WoCategory

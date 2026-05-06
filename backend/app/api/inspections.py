@@ -114,6 +114,7 @@ def _payload(ins: Inspection) -> dict[str, Any]:
         wo = db.session.get(WorkOrder, ins.work_order_id)
         wo_number = wo.wo_number if wo else None
     return {
+        "id": ins.id,
         "inspection_number": ins.inspection_number,
         "kind": ins.kind,
         "asset_uid": asset_uid,

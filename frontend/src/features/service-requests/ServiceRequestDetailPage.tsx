@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../../lib/apiClient";
+import { ActivityTimeline } from "../activity/ActivityTimeline";
+import { LinkedItems } from "../links/LinkedItems";
 import { DispatchDialog } from "./DispatchDialog";
 import type { SrClosureReason } from "./api";
 import { useServiceRequest, useUpdateServiceRequest } from "./hooks";
@@ -149,6 +151,9 @@ export function ServiceRequestDetailPage() {
           )}
         </section>
       )}
+
+      <LinkedItems entityType="service_request" entityId={data.id} />
+      <ActivityTimeline entityType="service_request" entityId={data.id} />
 
       {dispatchOpen && (
         <DispatchDialog

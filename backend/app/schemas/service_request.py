@@ -24,6 +24,7 @@ SrClosureReason = Literal["resolved", "duplicate", "no_action", "false_alarm", "
 class ServiceRequestRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: int
     sr_number: str
     category: SrCategory
     domain: SrDomain
