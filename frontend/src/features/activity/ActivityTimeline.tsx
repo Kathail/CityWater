@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ApiError } from "../../lib/apiClient";
 import { useAuth } from "../auth/useAuth";
-import type { SmartComment } from "../tasks/api";
+import type { TaskDefinitionRead } from "../tasks/api";
 import { type ActivityEntityType, type CommentRead, type HistoryEvent } from "./api";
 import { CommentComposer } from "./CommentComposer";
 import {
@@ -14,10 +14,10 @@ import {
 interface Props {
   entityType: ActivityEntityType;
   entityId: number;
-  /** When the parent entity is task-driven, pass the task's smart_comments
-   * and the operator's current task_data — chips will render in the comment
-   * composer. */
-  smartComments?: SmartComment[];
+  /** When the parent entity is task-driven, pass the active task and the
+   * operator's current task_data — both the smart-comment chips and the
+   * checklist draft will render in the comment composer. */
+  task?: TaskDefinitionRead;
   taskData?: Record<string, unknown>;
 }
 
@@ -28,7 +28,7 @@ type TimelineRow =
 export function ActivityTimeline({
   entityType,
   entityId,
-  smartComments,
+  task,
   taskData,
 }: Props) {
   const comments = useComments(entityType, entityId);
@@ -59,7 +59,7 @@ export function ActivityTimeline({
         <CommentComposer
           entityType={entityType}
           entityId={entityId}
-          smartComments={smartComments}
+          task={task}
           taskData={taskData}
         />
       </div>

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { ActivityTimeline } from "../activity/ActivityTimeline";
 import { LinkedItems } from "../links/LinkedItems";
+import { ProcedureRunner } from "../tasks/ProcedureRunner";
 import { getTaskDefinition, type TaskDefinitionRead } from "../tasks/api";
 import { TaskFormRenderer, type TaskData } from "../tasks/TaskFormRenderer";
 import {
@@ -131,7 +132,7 @@ export function WorkOrderDetailPage() {
       <ActivityTimeline
         entityType="work_order"
         entityId={wo.id}
-        smartComments={taskQuery.data?.smart_comments}
+        task={taskQuery.data}
         taskData={wo.task_data}
       />
     </div>
@@ -213,15 +214,22 @@ function TaskSection({
       {task.form.length > 0 && (
         <div className="mt-4">
           <TaskFormRenderer task={task} value={data} onChange={handleChange} />
-          <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-            {save.isPending && <span>Saving…</span>}
-            {!save.isPending && savedAt && (
-              <span>Saved {savedAt.toLocaleTimeString()}</span>
-            )}
-            {error && <span className="text-red-400">Save failed: {error}</span>}
-          </div>
         </div>
       )}
+
+      {(task.procedure?.steps?.length ?? 0) > 0 && (
+        <div className="mt-4">
+          <ProcedureRunner task={task} taskData={data} onChange={handleChange} />
+        </div>
+      )}
+
+      <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+        {save.isPending && <span>Saving…</span>}
+        {!save.isPending && savedAt && (
+          <span>Saved {savedAt.toLocaleTimeString()}</span>
+        )}
+        {error && <span className="text-red-400">Save failed: {error}</span>}
+      </div>
     </Section>
   );
 }

@@ -209,31 +209,37 @@ TASK_WAT_DISCOLOURED: dict[str, Any] = {
                 "n": 1,
                 "title": "Contact customer at site",
                 "auto_complete_when": "site_visited == true",
+                "comment_when_checked": "Made contact with customer on site.",
             },
             {
                 "n": 2,
                 "title": "Run cold tap until clear or 10 min",
                 "auto_complete_when": "cold_run_minutes >= 10 || cold_outcome == 'cleared'",
+                "comment_when_checked": "Ran cold tap for {cold_run_minutes} min — outcome: {cold_outcome}.",
             },
             {
                 "n": 3,
                 "title": "Locate nearest hydrant",
                 "auto_complete_when": "hydrant_flushed != null",
+                "comment_when_checked": "Located nearest hydrant ({hydrant_flushed}).",
             },
             {
                 "n": 4,
                 "title": "Flush hydrant until clear",
                 "auto_complete_when": "flush_minutes > 0",
+                "comment_when_checked": "Flushed hydrant for {flush_minutes} min until clear.",
             },
             {
                 "n": 5,
                 "title": "Verify Cl2 residual >= 0.05 ppm",
                 "auto_complete_when": "chlorine_residual >= 0.05",
+                "comment_when_checked": "Verified Cl2 residual at {chlorine_residual} ppm.",
             },
             {
                 "n": 6,
                 "title": "Determine outcome and notify customer",
                 "auto_complete_when": "outcome != null",
+                "comment_when_checked": "Outcome: {outcome}. Customer notified.",
             },
         ],
         "regulatory": [

@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type InspectionListParams,
   type InspectionListResponse,
   type InspectionRead,
   getInspection,
   listInspections,
+  updateInspection,
 } from "./api";
 
 export function useInspections(params: InspectionListParams) {
@@ -20,5 +21,16 @@ export function useInspection(n: string | undefined) {
     queryKey: ["inspection", n],
     queryFn: () => getInspection(n!),
     enabled: !!n,
+  });
+}
+
+export function useUpdateInspection(n: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: Parameters<typeof updateInspection>[1]) =>
+      updateInspection(n, patch),
+    onSuccess: (next) => {
+      queryClient.setQueryData(["inspection", n], next);
+    },
   });
 }

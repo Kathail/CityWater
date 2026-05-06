@@ -113,6 +113,12 @@ def _payload(ins: Inspection) -> dict[str, Any]:
     if ins.work_order_id:
         wo = db.session.get(WorkOrder, ins.work_order_id)
         wo_number = wo.wo_number if wo else None
+    task_definition_code: str | None = None
+    if ins.task_definition_id is not None:
+        from app.models import TaskDefinition
+
+        td = db.session.get(TaskDefinition, ins.task_definition_id)
+        task_definition_code = td.code if td else None
     return {
         "id": ins.id,
         "inspection_number": ins.inspection_number,
@@ -126,6 +132,8 @@ def _payload(ins: Inspection) -> dict[str, Any]:
         "notes": ins.notes,
         "data": ins.data,
         "attrs": ins.attrs,
+        "task_definition_code": task_definition_code,
+        "task_data": ins.task_data or {},
         "created_at": ins.created_at.isoformat(),
         "updated_at": ins.updated_at.isoformat(),
     }
@@ -271,6 +279,8 @@ def update_inspection(inspection_number: str):
         ins.notes = data.notes
     if data.data is not None:
         ins.data = _normalize_data(ins.kind, data.data)
+    if data.task_data is not None:
+        ins.task_data = data.task_data
 
     db.session.commit()
     db.session.refresh(ins)

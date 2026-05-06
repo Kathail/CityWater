@@ -43,6 +43,10 @@ export interface ProcedureStep {
   title: string;
   detail?: string;
   auto_complete_when?: string;
+  /** Optional template rendered into the comment composer when this step
+   * is ticked. `{var}` placeholders are interpolated against task_data
+   * (same engine as smart_comments). Empty/missing means no comment. */
+  comment_when_checked?: string;
 }
 
 export interface Procedure {

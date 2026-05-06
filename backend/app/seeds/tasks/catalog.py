@@ -268,9 +268,11 @@ TASKS: list[dict[str, Any]] = [
         "procedure": {
             "steps": [
                 {"n": 1, "title": "Open hydrant and flush until clear",
-                 "auto_complete_when": "flush_completed == true"},
+                 "auto_complete_when": "flush_completed == true",
+                 "comment_when_checked": "Flushed hydrant for {flush_minutes} min until clear."},
                 {"n": 2, "title": "Record flush time and water quality observations",
-                 "auto_complete_when": "data_recorded == true"},
+                 "auto_complete_when": "data_recorded == true",
+                 "comment_when_checked": "Recorded flush time and water quality observations."},
             ],
         },
         "completion": {
@@ -623,11 +625,14 @@ TASKS: list[dict[str, Any]] = [
         "procedure": {
             "steps": [
                 {"n": 1, "title": "Set up and perform CCTV survey",
-                 "auto_complete_when": "survey_completed == true"},
+                 "auto_complete_when": "survey_completed == true",
+                 "comment_when_checked": "Completed CCTV survey ({length_surveyed_m} m surveyed)."},
                 {"n": 2, "title": "Record observations and generate PACP ratings",
-                 "auto_complete_when": "ratings_complete == true"},
+                 "auto_complete_when": "ratings_complete == true",
+                 "comment_when_checked": "Recorded observations. Structural total {structural_total}, O&M total {om_total}."},
                 {"n": 3, "title": "Recommend follow-up actions if needed",
-                 "auto_complete_when": "recommendations_complete == true"},
+                 "auto_complete_when": "recommendations_complete == true",
+                 "comment_when_checked": "Follow-up recommendations documented."},
             ],
         },
         "completion": {

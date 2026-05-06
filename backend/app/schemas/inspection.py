@@ -103,6 +103,7 @@ class InspectionUpdate(BaseModel):
     pass_: bool | None = Field(default=None, alias="pass")
     notes: str | None = None
     data: dict[str, Any] | None = None
+    task_data: dict[str, Any] | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -120,6 +121,8 @@ class InspectionRead(BaseModel):
     notes: str | None = None
     data: dict[str, Any]
     attrs: dict[str, Any] = Field(default_factory=dict)
+    task_definition_code: str | None = None
+    task_data: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 

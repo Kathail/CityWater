@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../../lib/apiClient";
 import { ActivityTimeline } from "../activity/ActivityTimeline";
 import { LinkedItems } from "../links/LinkedItems";
+import { ProcedureRunner } from "../tasks/ProcedureRunner";
 import { getTaskDefinition, type TaskDefinitionRead } from "../tasks/api";
 import { TaskFormRenderer, type TaskData } from "../tasks/TaskFormRenderer";
 import { DispatchDialog } from "./DispatchDialog";
@@ -209,14 +210,25 @@ export function ServiceRequestDetailPage() {
                 value={taskData}
                 onChange={handleTaskChange}
               />
-              <div className="mt-2 text-xs text-slate-500">
-                {update.isPending && <span>Saving…</span>}
-                {!update.isPending && savedAt && (
-                  <span>Saved {savedAt.toLocaleTimeString()}</span>
-                )}
-              </div>
             </div>
           )}
+
+          {(taskQuery.data.procedure?.steps?.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <ProcedureRunner
+                task={taskQuery.data}
+                taskData={taskData}
+                onChange={handleTaskChange}
+              />
+            </div>
+          )}
+
+          <div className="mt-2 text-xs text-slate-500">
+            {update.isPending && <span>Saving…</span>}
+            {!update.isPending && savedAt && (
+              <span>Saved {savedAt.toLocaleTimeString()}</span>
+            )}
+          </div>
         </section>
       )}
 
@@ -224,7 +236,7 @@ export function ServiceRequestDetailPage() {
       <ActivityTimeline
         entityType="service_request"
         entityId={data.id}
-        smartComments={taskQuery.data?.smart_comments}
+        task={taskQuery.data}
         taskData={taskData}
       />
 

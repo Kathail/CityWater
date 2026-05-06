@@ -1,8 +1,9 @@
 import { useRef, useState, type FormEvent } from "react";
 import { ApiError } from "../../lib/apiClient";
 import { useAssets } from "../assets/hooks";
+import { ChecklistDraft } from "../tasks/ChecklistDraft";
 import { SmartCommentChips } from "../tasks/SmartCommentChips";
-import type { SmartComment } from "../tasks/api";
+import type { TaskDefinitionRead } from "../tasks/api";
 import { type ActivityEntityType } from "./api";
 import { useCreateComment } from "./hooks";
 
@@ -22,18 +23,19 @@ import { useCreateComment } from "./hooks";
 interface Props {
   entityType: ActivityEntityType;
   entityId: number;
-  /** Optional task-driven smart comments. When supplied along with the
-   * current task_data, suggestion chips render under the textarea.
-   * Tapping a chip inserts its text at the cursor; operator can edit
-   * or clear before posting. */
-  smartComments?: SmartComment[];
+  /** When the parent entity is task-driven, both the smart-comment chips
+   * (always-on suggestions) and the checklist draft (rolled-up text from
+   * ticked procedure steps) render in the composer. The chips and the
+   * checklist are complementary — chips for narrative SR-style comments,
+   * checklist for repetitive daily-WO summaries. */
+  task?: TaskDefinitionRead;
   taskData?: Record<string, unknown>;
 }
 
 export function CommentComposer({
   entityType,
   entityId,
-  smartComments,
+  task,
   taskData,
 }: Props) {
   const [body, setBody] = useState("");
@@ -106,9 +108,13 @@ export function CommentComposer({
         className="block w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2 text-base text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
       />
 
-      {smartComments && smartComments.length > 0 && (
+      {task && (
+        <ChecklistDraft task={task} taskData={taskData ?? {}} onPick={applySuggestion} />
+      )}
+
+      {task?.smart_comments && task.smart_comments.length > 0 && (
         <SmartCommentChips
-          smartComments={smartComments}
+          smartComments={task.smart_comments}
           taskData={taskData ?? {}}
           onPick={applySuggestion}
         />

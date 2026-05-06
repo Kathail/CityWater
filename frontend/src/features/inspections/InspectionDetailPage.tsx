@@ -1,11 +1,39 @@
+import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { ActivityTimeline } from "../activity/ActivityTimeline";
 import { LinkedItems } from "../links/LinkedItems";
-import { useInspection } from "./hooks";
+import { ProcedureRunner } from "../tasks/ProcedureRunner";
+import { getTaskDefinition, type TaskDefinitionRead } from "../tasks/api";
+import { TaskFormRenderer, type TaskData } from "../tasks/TaskFormRenderer";
+import { useInspection, useUpdateInspection } from "./hooks";
 
 export function InspectionDetailPage() {
   const { slug, n } = useParams<{ slug: string; n: string }>();
   const insQuery = useInspection(n);
+  const update = useUpdateInspection(n ?? "");
+
+  const taskCode = insQuery.data?.task_definition_code ?? null;
+  const taskQuery = useQuery<TaskDefinitionRead, Error>({
+    queryKey: ["task-definition", taskCode],
+    queryFn: () => getTaskDefinition(taskCode!),
+    enabled: !!taskCode,
+  });
+
+  const [taskData, setTaskData] = useState<TaskData>(insQuery.data?.task_data ?? {});
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (insQuery.data?.task_data) setTaskData(insQuery.data.task_data);
+  }, [insQuery.data?.task_data]);
+
+  function handleTaskChange(next: TaskData) {
+    setTaskData(next);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      update.mutate({ task_data: next }, { onSuccess: () => setSavedAt(new Date()) });
+    }, 600);
+  }
 
   if (insQuery.isLoading) return <div className="p-8 text-slate-400">Loading…</div>;
   if (insQuery.error) return <div className="p-8 text-red-400">{insQuery.error.message}</div>;
@@ -74,8 +102,59 @@ export function InspectionDetailPage() {
         </section>
       )}
 
+      {taskQuery.data && (
+        <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400 mb-2">
+            Task
+          </h2>
+          <div className="flex items-baseline justify-between gap-3">
+            <div>
+              <p className="text-base text-slate-100">{taskQuery.data.title}</p>
+              {taskQuery.data.summary && (
+                <p className="mt-1 text-xs text-slate-400">{taskQuery.data.summary}</p>
+              )}
+            </div>
+            <Link
+              to={`/${slug}/admin/task-definitions`}
+              className="font-mono text-xs text-slate-400 hover:text-blue-300 hover:underline"
+            >
+              {taskQuery.data.code} · v{taskQuery.data.version}
+            </Link>
+          </div>
+          {taskQuery.data.form.length > 0 && (
+            <div className="mt-4">
+              <TaskFormRenderer
+                task={taskQuery.data}
+                value={taskData}
+                onChange={handleTaskChange}
+              />
+            </div>
+          )}
+          {(taskQuery.data.procedure?.steps?.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <ProcedureRunner
+                task={taskQuery.data}
+                taskData={taskData}
+                onChange={handleTaskChange}
+              />
+            </div>
+          )}
+          <div className="mt-2 text-xs text-slate-500">
+            {update.isPending && <span>Saving…</span>}
+            {!update.isPending && savedAt && (
+              <span>Saved {savedAt.toLocaleTimeString()}</span>
+            )}
+          </div>
+        </section>
+      )}
+
       <LinkedItems entityType="inspection" entityId={ins.id} />
-      <ActivityTimeline entityType="inspection" entityId={ins.id} />
+      <ActivityTimeline
+        entityType="inspection"
+        entityId={ins.id}
+        task={taskQuery.data}
+        taskData={taskData}
+      />
     </div>
   );
 }

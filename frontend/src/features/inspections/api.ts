@@ -21,6 +21,8 @@ export interface InspectionRead {
   notes: string | null;
   data: Record<string, unknown>;
   attrs: Record<string, unknown>;
+  task_definition_code: string | null;
+  task_data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -81,7 +83,7 @@ export function updateInspection(
   n: string,
   patch: Partial<
     Pick<InspectionCreateInput, "performed_at" | "overall_condition" | "pass" | "notes" | "data">
-  >,
+  > & { task_data?: Record<string, unknown> },
 ): Promise<InspectionRead> {
   return apiJson<InspectionRead>(`/api/v1/inspections/${encodeURIComponent(n)}`, {
     method: "PATCH",
