@@ -6,7 +6,7 @@ export function TenantHomePage() {
   if (!user || !tenant) return null;
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="p-8 max-w-3xl space-y-6">
       <header>
         <h1 className="text-2xl font-semibold text-slate-900">
           Welcome, {user.full_name.split(" ")[0]}
@@ -20,8 +20,13 @@ export function TenantHomePage() {
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-500">Quick links</h2>
         <ul className="mt-3 space-y-2">
           <li>
+            <Link to={`/${tenant.slug}/map`} className="text-slate-900 hover:underline">
+              Open the map →
+            </Link>
+          </li>
+          <li>
             <Link to={`/${tenant.slug}/assets`} className="text-slate-900 hover:underline">
-              Browse assets →
+              Browse the asset list →
             </Link>
           </li>
         </ul>
@@ -39,7 +44,7 @@ export function TenantHomePage() {
       </section>
 
       <p className="text-xs text-slate-500">
-        Map view, work orders, inspections, and service requests land in upcoming sprints (S3+).
+        Work orders, inspections, and service requests land in upcoming sprints (S5+).
       </p>
     </div>
   );

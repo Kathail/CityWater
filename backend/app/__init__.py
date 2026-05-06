@@ -12,6 +12,7 @@ from app.api.auth import auth_bp
 from app.api.health import health_bp
 from app.api.openapi import openapi_bp
 from app.api.tenant import tenant_bp
+from app.api.tiles import tiles_bp
 from app.api.users import users_bp
 from app.config import Settings
 from app.errors import register_error_handlers
@@ -91,5 +92,6 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(users_bp)
     app.register_blueprint(asset_classes_bp)
     app.register_blueprint(assets_bp)
+    app.register_blueprint(tiles_bp)
 
     return app

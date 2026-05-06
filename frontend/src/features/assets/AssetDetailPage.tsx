@@ -108,7 +108,7 @@ export function AssetDetailPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="p-8 max-w-2xl space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <Link to={`/${params.slug}/assets`} className="text-sm text-slate-500 hover:underline">

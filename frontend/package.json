@@ -19,6 +19,7 @@
     "react-dom": "DOM renderer for React",
     "react-router-dom": "client routing — used in S2+ for /{slug}/... routes (CLAUDE.md repo layout)",
     "@tanstack/react-query": "server state management (CLAUDE.md mandate)",
+    "maplibre-gl": "vector tile rendering on the asset map (CLAUDE.md mandate)",
     "@types/react": "React types for strict TS",
     "@types/react-dom": "react-dom types",
     "@vitejs/plugin-react": "JSX/HMR support for Vite",
@@ -42,6 +43,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.40.0",
+    "maplibre-gl": "^5.0.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-router-dom": "^6.23.0"

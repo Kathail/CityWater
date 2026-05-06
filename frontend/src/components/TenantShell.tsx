@@ -44,6 +44,7 @@ export function TenantShell() {
         </Link>
         <nav className="flex flex-col gap-1">
           {navLink(`/${slug}/`, "Home")}
+          {navLink(`/${slug}/map`, "Map")}
           {navLink(`/${slug}/assets`, "Assets")}
         </nav>
         <div className="mt-auto pt-4 border-t border-slate-200">
@@ -58,7 +59,7 @@ export function TenantShell() {
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-8 overflow-auto">
+      <main className="flex-1 relative overflow-auto">
         <Outlet />
       </main>
     </div>
