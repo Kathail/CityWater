@@ -12,6 +12,7 @@ from app.models.mixins import (
     TimestampMixin,
 )
 from app.models.pacp_code import PacpCode
+from app.models.service_request import ServiceRequest
 from app.models.tenant import Tenant
 from app.models.user import Role, User, UserRole
 from app.models.wo_template import WoTemplate
@@ -45,6 +46,7 @@ __all__ = [
     "Inspection",
     "PacpCode",
     "Role",
+    "ServiceRequest",
     "SoftDeleteMixin",
     "Tenant",
     "TenantScopedMixin",

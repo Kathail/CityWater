@@ -14,6 +14,7 @@ from app.api.health import health_bp
 from app.api.inspections import inspections_bp
 from app.api.openapi import openapi_bp
 from app.api.pacp_codes import pacp_codes_bp
+from app.api.service_requests import service_requests_bp
 from app.api.tenant import tenant_bp
 from app.api.tiles import tiles_bp
 from app.api.users import users_bp
@@ -106,6 +107,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(wo_templates_bp)
     app.register_blueprint(inspections_bp)
     app.register_blueprint(pacp_codes_bp)
+    app.register_blueprint(service_requests_bp)
 
     from app.cli.seed_demo import register as register_seed_demo
 

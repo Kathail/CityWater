@@ -24,6 +24,7 @@ from app.models import (
     Crew,
     Inspection,
     Role,
+    ServiceRequest,
     Tenant,
     User,
     UserRole,
@@ -37,6 +38,7 @@ from app.services.asset_uid import next_asset_uid
 from app.services.auth import hash_password
 from app.services.geometry import geojson_to_wkb
 from app.services.inspection_number import next_inspection_number
+from app.services.sr_number import next_sr_number
 from app.services.wo_number import next_wo_number
 from app.utils.uids import generate_user_uid
 
@@ -132,6 +134,9 @@ def _wipe_demo() -> None:
         )
     )
     db.session.execute(WorkOrder.__table__.delete().where(WorkOrder.tenant_id == tenant_id))
+    db.session.execute(
+        ServiceRequest.__table__.delete().where(ServiceRequest.tenant_id == tenant_id)
+    )
     db.session.execute(WoTemplate.__table__.delete().where(WoTemplate.tenant_id == tenant_id))
     db.session.execute(Asset.__table__.delete().where(Asset.tenant_id == tenant_id))
     db.session.execute(Crew.__table__.delete().where(Crew.tenant_id == tenant_id))
@@ -182,7 +187,7 @@ def _seed() -> None:
     admin = _make_user(ADMIN_EMAIL, "Admin Pearson", ["admin"])
     supervisor = _make_user(SUP_EMAIL, "Sara Vega", ["supervisor"])
     tech = _make_user(TECH_EMAIL, "Tom Fields", ["tech"])
-    _make_user(INTAKE_EMAIL, "Iris Park", ["intake"])
+    intake = _make_user(INTAKE_EMAIL, "Iris Park", ["intake"])
     db.session.flush()
 
     # Crew
@@ -588,6 +593,88 @@ def _seed() -> None:
             },
             notes="Schedule structural rehab — Quick Rating 4.",
         )
+
+    # Service requests — assorted statuses + a true duplicate pair
+    def _sr(**kwargs) -> ServiceRequest:
+        n = next_sr_number(tenant_id=tenant.id)
+        defaults = {
+            "priority": "normal",
+            "status": "new",
+            "reported_at": datetime.now(UTC),
+            "intake_user_id": intake.id,
+        }
+        for k, v in defaults.items():
+            kwargs.setdefault(k, v)
+        sr = ServiceRequest(tenant_id=tenant.id, sr_number=n, **kwargs)
+        db.session.add(sr)
+        db.session.flush()
+        return sr
+
+    _sr(
+        category="low_pressure",
+        domain="water",
+        priority="high",
+        caller_name="Margaret Chen",
+        caller_phone="410-555-0118",
+        address="221 Bay Ridge Ave, Annapolis, MD",
+        location=geojson_to_wkb(_point(-76.4885, 38.9690)),
+        description="Pressure dropped sharply this afternoon — barely a trickle.",
+        reported_at=datetime.now(UTC) - timedelta(hours=2),
+    )
+    _sr(
+        category="sewer_backup",
+        domain="sewer",
+        priority="emergency",
+        status="triaged",
+        caller_name="Diego Rivera",
+        caller_phone="410-555-0244",
+        address="14 Greenfield Rd",
+        location=geojson_to_wkb(_point(-76.4865, 38.9722)),
+        description="Sewage backing up into basement utility room.",
+        reported_at=datetime.now(UTC) - timedelta(hours=5),
+    )
+    _sr(
+        category="flooding",
+        domain="storm",
+        caller_name="Anonymous",
+        address="Corner of Forest Dr and Hilltop",
+        location=geojson_to_wkb(_point(-76.4920, 38.9750)),
+        description="Catch basin overflowing during yesterday's storm.",
+        reported_at=datetime.now(UTC) - timedelta(days=1),
+    )
+    # A pair within 100m / 7d that the duplicate detector will flag together
+    _sr(
+        category="odour",
+        domain="sewer",
+        caller_name="Pat Lee",
+        address="900 block, West St",
+        location=geojson_to_wkb(_point(-76.4972, 38.9658)),
+        description="Strong smell coming from the manhole.",
+        reported_at=datetime.now(UTC) - timedelta(days=2),
+    )
+    _sr(
+        category="odour",
+        domain="sewer",
+        caller_name="J. Park",
+        address="908 West St",
+        location=geojson_to_wkb(_point(-76.4970, 38.9659)),
+        description="Same smell as yesterday — multiple neighbours noticed it.",
+        reported_at=datetime.now(UTC) - timedelta(hours=18),
+    )
+    _sr(
+        category="damaged_asset",
+        domain="water",
+        priority="high",
+        status="closed",
+        closed_at=datetime.now(UTC) - timedelta(days=1),
+        closure_reason="resolved",
+        closure_notes="Hydrant struck — replaced same day.",
+        caller_name="Public Works dispatcher",
+        address="Eastport Plaza",
+        location=geojson_to_wkb(_point(-76.4825, 38.9688)),
+        description="Vehicle struck a hydrant, water spraying.",
+        reported_at=datetime.now(UTC) - timedelta(days=2),
+    )
 
     db.session.commit()
 

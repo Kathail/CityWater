@@ -84,6 +84,11 @@ class WorkOrder(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Audita
         Geometry(geometry_type="POINT", srid=4326), nullable=True
     )
     template_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    service_request_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("service_request.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     due_by: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -1,6 +1,6 @@
-# Handoff — resume point after Sprint 7
+# Handoff — resume point after Sprint 8
 
-Last commit on `main`: `c9d193c feat: sprint 7 cctv / pacp`
+Last commit on `main` should be the upcoming `feat: sprint 8 service requests` once squash-merged.
 Pushed to: `https://github.com/Kathail/CityWater`
 
 ## Where the project stands
@@ -15,17 +15,17 @@ Pushed to: `https://github.com/Kathail/CityWater`
 | S5 | ✅ done | Work orders + tasks/time/materials/attachments (boto3 + EXIF), Kanban (@dnd-kit), templates |
 | S6 | ✅ done | Inspections (5 non-CCTV kinds): hydrant flow w/ NFPA 291 server-side calc, valve, MH, CB, lift station |
 | S7 | ✅ done | CCTV / PACP — code catalog, WinCan XML+JSON import, observation table |
-| **S8** | **next** | Service requests (intake, triage, dispatch) |
-| S9 | pending | Reports (5 canned reports, JSON/CSV/PDF) |
+| S8 | ✅ done | Service requests — intake, triage, dispatch → WO, ST_DWithin duplicate detection, Nominatim geocode stub |
+| **S9** | **next** | Reports (5 canned reports, JSON/CSV/PDF) |
 | S10 | pending | Field PWA (service worker, IDB cache, mutation queue) |
 | S11 | pending | Admin & polish (user invites, schema editor) |
 | S12 | pending | Hardening (rate limits, CSP, backups, runbooks) |
 
 ## Tests passing
 
-- **Backend: 177** (`cd backend && uv run pytest`)
-- **Frontend: 26** (`cd frontend && npm test`)
-- All migrations 0001–0017 apply cleanly.
+- **Backend: 196** (`cd backend && uv run pytest`)
+- **Frontend: 28** (`cd frontend && npm test`)
+- All migrations 0001–0018 apply cleanly.
 
 ## Resume workflow
 
