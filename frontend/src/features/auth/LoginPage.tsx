@@ -5,6 +5,16 @@ import { ApiError } from "../../lib/apiClient";
 import { login, type AuthEnvelope } from "./api";
 import { ME_QUERY_KEY } from "./useAuth";
 
+// Demo tenant ships seeded by `flask seed-demo` and pre-loaded with 12
+// months of simulated work via `flask simulate-year`. Anyone hitting the
+// "Try the demo" button lands on the admin profile of this tenant — the
+// data is sandbox content, no real customers.
+const DEMO_LOGIN = {
+  tenant_slug: "demo",
+  email: "admin@demo.citywater.io",
+  password: "DemoPassword123!",
+};
+
 export function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -30,10 +40,30 @@ export function LoginPage() {
     },
   });
 
+  const demoMutation = useMutation<AuthEnvelope, Error>({
+    mutationFn: () => login(DEMO_LOGIN),
+    onSuccess: (data) => {
+      queryClient.setQueryData(ME_QUERY_KEY, data);
+      navigate(`/${data.tenant.slug}/`, { replace: true });
+    },
+    onError: (err) => {
+      setErrorMessage(
+        err instanceof ApiError && err.code === "bad_credentials"
+          ? "Demo tenant isn't seeded. Run `flask seed-demo` then retry."
+          : err.message,
+      );
+    },
+  });
+
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setErrorMessage(null);
     mutation.mutate();
+  }
+
+  function tryDemo() {
+    setErrorMessage(null);
+    demoMutation.mutate();
   }
 
   return (
@@ -93,6 +123,25 @@ export function LoginPage() {
         >
           {mutation.isPending ? "Signing in…" : "Sign in"}
         </button>
+
+        <div className="flex items-center gap-3 text-xs text-slate-500">
+          <div className="h-px flex-1 bg-slate-800" />
+          <span>or</span>
+          <div className="h-px flex-1 bg-slate-800" />
+        </div>
+
+        <button
+          type="button"
+          onClick={tryDemo}
+          disabled={demoMutation.isPending}
+          className="w-full rounded-md border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-100 hover:border-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50"
+        >
+          {demoMutation.isPending ? "Loading demo…" : "Try the demo →"}
+        </button>
+        <p className="text-center text-xs text-slate-500">
+          Sandbox tenant with 12 months of simulated work. No sign-up needed.
+        </p>
+
         <p className="text-sm text-slate-400">
           Need an account?{" "}
           <Link to="/register" className="text-blue-400 hover:text-blue-300 hover:underline">
