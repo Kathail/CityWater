@@ -9,11 +9,14 @@ from app import models  # noqa: F401  populate Base.metadata for migrations + cr
 from app.api.asset_classes import asset_classes_bp
 from app.api.assets import assets_bp
 from app.api.auth import auth_bp
+from app.api.crews import crews_bp
 from app.api.health import health_bp
 from app.api.openapi import openapi_bp
 from app.api.tenant import tenant_bp
 from app.api.tiles import tiles_bp
 from app.api.users import users_bp
+from app.api.wo_templates import wo_templates_bp
+from app.api.work_orders import work_orders_bp
 from app.config import Settings
 from app.errors import register_error_handlers
 from app.extensions import csrf, db, login_manager, migrate
@@ -35,7 +38,9 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["WTF_CSRF_TIME_LIMIT"] = None
-    app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB import upload cap
+    # Imports cap at 10 MB; attachments at 25 MB. Flask uses one global limit,
+    # so pick the larger; per-route enforcement adds finer checks.
+    app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -94,5 +99,8 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(asset_classes_bp)
     app.register_blueprint(assets_bp)
     app.register_blueprint(tiles_bp)
+    app.register_blueprint(crews_bp)
+    app.register_blueprint(work_orders_bp)
+    app.register_blueprint(wo_templates_bp)
 
     return app

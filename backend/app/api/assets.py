@@ -332,6 +332,14 @@ def import_assets():
     file = request.files.get("file")
     if not file:
         raise ValidationError("missing 'file' field", code="missing_file")
+    # Per-route 10 MB cap; global MAX_CONTENT_LENGTH is 25 MB for attachments.
+    file.stream.seek(0, 2)
+    size = file.stream.tell()
+    file.stream.seek(0)
+    if size > 10 * 1024 * 1024:
+        from flask import abort
+
+        abort(413)
 
     on_conflict = request.form.get("on_conflict", "skip")
     if on_conflict not in ("skip", "update"):

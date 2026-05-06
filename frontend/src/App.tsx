@@ -8,6 +8,8 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { RegisterTenantPage } from "./features/auth/RegisterTenantPage";
 import { RequireAuth } from "./features/auth/RequireAuth";
 import { TenantHomePage } from "./features/auth/TenantHomePage";
+import { WorkOrderDetailPage } from "./features/work-orders/WorkOrderDetailPage";
+import { WorkOrderListPage } from "./features/work-orders/WorkOrderListPage";
 
 // MapLibre is heavy — lazy-load it so the auth pages stay light.
 const MapPage = lazy(() => import("./features/map").then((m) => ({ default: m.MapPage })));
@@ -44,6 +46,8 @@ export function App() {
             <Route index element={<TenantHomePage />} />
             <Route path="assets" element={<AssetListPage />} />
             <Route path="assets/:uid" element={<AssetDetailPage />} />
+            <Route path="work-orders" element={<WorkOrderListPage />} />
+            <Route path="work-orders/:wo" element={<WorkOrderDetailPage />} />
             <Route
               path="map"
               element={
