@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <path d="M256 96c-58 75-100 128-100 186a100 100 0 0 0 200 0c0-58-42-111-100-186z" fill="#38bdf8"/>
+  <text x="256" y="450" font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="700" fill="#f8fafc" text-anchor="middle">FlowOps</text>
+</svg>
