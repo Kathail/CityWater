@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { ExportButton } from "./ExportButton";
+import { ImportDialog } from "./ImportDialog";
 import { useAssetClasses, useAssets } from "./hooks";
 import type { AssetListParams } from "./api";
 
@@ -8,6 +10,7 @@ const STATUSES = ["active", "abandoned", "removed", "proposed"] as const;
 export function AssetListPage() {
   const [search, setSearch] = useSearchParams();
   const [pendingQ, setPendingQ] = useState(search.get("q") ?? "");
+  const [importOpen, setImportOpen] = useState(false);
 
   const params: AssetListParams = {
     class: search.get("class") ?? undefined,
@@ -32,7 +35,18 @@ export function AssetListPage() {
     <div className="p-8 space-y-4">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-slate-900">Assets</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+          >
+            Import…
+          </button>
+          <ExportButton />
+        </div>
       </header>
+
+      {importOpen && <ImportDialog onClose={() => setImportOpen(false)} />}
 
       <div className="flex gap-3 items-end flex-wrap">
         <label className="block">

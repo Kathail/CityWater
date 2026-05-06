@@ -55,9 +55,6 @@ def test_assets_tile_isolates_tenants(app, client, admin_user):
     other = make_tenant(slug="globex", name="Globex Inc")
     make_user(other, email="ghost@globex.io", role_codes=["admin"])
     make_asset(other, class_code="WAT_HYD", asset_uid="HYD-OTHER-T", coords=(-76.5, 39.3))
-    make_asset(
-        admin_user.__class__.__mro__[0] is None and None or None, class_code=None
-    ) if False else None  # noqa
     db.session.commit()
 
     # Login as acme admin — they should NOT see globex's asset in their tile

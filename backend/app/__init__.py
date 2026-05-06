@@ -35,6 +35,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["WTF_CSRF_TIME_LIMIT"] = None
+    app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB import upload cap
 
     db.init_app(app)
     migrate.init_app(app, db)
