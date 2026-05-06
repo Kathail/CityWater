@@ -8,17 +8,16 @@ can finalize their account.
 from __future__ import annotations
 
 import logging
-import os
 from datetime import UTC, datetime, timedelta
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, current_app, g, jsonify, request
 from flask_login import current_user, login_required
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.errors import ConflictError, NotFoundError, ValidationError
-from app.extensions import csrf, db
+from app.extensions import csrf, db, limiter
 from app.models import Invitation, Role, Tenant, User, UserRole
 from app.schemas.invitation import (
     InvitationAccept,
@@ -29,6 +28,7 @@ from app.schemas.invitation import (
 )
 from app.services.audit import emit_event
 from app.services.auth import hash_password
+from app.services.email import send_invitation_email
 from app.services.invitations import generate_token, token_prefix, verify_token
 from app.services.permissions import require_roles
 from app.utils.uids import generate_user_uid
@@ -46,8 +46,13 @@ def _validate(model_cls, data):
 
 
 def _accept_url(token: str) -> str:
-    base = os.environ.get("PUBLIC_BASE_URL") or request.host_url.rstrip("/")
+    settings = current_app.config["SETTINGS"]
+    base = settings.public_base_url or request.host_url.rstrip("/")
     return f"{base}/accept-invitation/{token}"
+
+
+def _accept_limit() -> str:
+    return current_app.config["SETTINGS"].rate_limit_invite_accept
 
 
 def _payload(inv: Invitation) -> dict:
@@ -137,14 +142,20 @@ def create_invitation():
     db.session.commit()
     db.session.refresh(inv)
 
-    # Production: send the email here. v1: log the URL so the admin can
-    # copy/paste from the response or server log.
-    logger.info(
-        "invitation created tenant=%s email=%s accept_url=%s",
-        inv.tenant_id,
-        inv.email,
-        accept_url,
-    )
+    # Send the invitation. The email driver is settings-driven (`stdout`
+    # default, `resend` when wired). Failure to send shouldn't roll back
+    # the row — the admin UI shows the accept URL for manual delivery.
+    tenant_obj = db.session.get(Tenant, inv.tenant_id)
+    try:
+        send_invitation_email(
+            to=inv.email,
+            accept_url=accept_url,
+            tenant_name=tenant_obj.name if tenant_obj else "FlowOps",
+        )
+    except Exception:
+        logger.exception(
+            "invitation email send failed; admin can copy the accept_url manually",
+        )
 
     return (
         jsonify(
@@ -188,6 +199,7 @@ def revoke_invitation(invitation_id: int):
 
 @invitations_bp.post("/accept")
 @csrf.exempt
+@limiter.limit(_accept_limit)
 def accept_invitation():
     """Public endpoint — recipient submits token + new password.
 

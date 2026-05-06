@@ -1,7 +1,10 @@
-# Handoff — resume point after Sprint 11
+# Handoff — v1 complete (post-Sprint 12)
 
-Last commit on `main`: the upcoming `feat: sprint 11 admin & polish` once squash-merged.
-Pushed to: `https://github.com/Kathail/CityWater`
+Last commit on `main`: the upcoming `feat: sprint 12 hardening` once squash-merged.
+Pushed to: `https://github.com/Kathail/FlowOps`
+
+All 13 planned sprints (S0–S12) are shipped. From here it's bug fixes, real
+deployments, and v2 scope.
 
 ## Where the project stands
 
@@ -19,13 +22,13 @@ Pushed to: `https://github.com/Kathail/CityWater`
 | S9 | ✅ done | Reports — 5 canned (break-history, wo-summary, inspection-summary, age-distribution, condition×criticality), JSON/CSV/PDF via ReportLab |
 | S10 | ✅ done | Field PWA — vite-plugin-pwa SW, IDB-backed mutation queue + asset cache fallback, online/offline banner, conflict drawer |
 | S11 | ✅ done | Admin & polish — invitations (Argon2-hashed tokens, accept page), role editor, tenant settings, asset-class JSON Schema editor |
-| **S12** | **next** | Hardening (rate limits, CSP, backups, runbooks) |
+| S12 | ✅ done | Hardening — Flask-Limiter on auth + accept, CSP / HSTS / Permissions-Policy headers, request-ID middleware, email driver interface (stdout / Resend), audit-retention cleanup endpoint, backup runbook + script |
 
 ## Tests passing
 
-- **Backend: 213** (`cd backend && uv run pytest`)
+- **Backend: 224** (`cd backend && uv run pytest`)
 - **Frontend: 41** (`cd frontend && npm test`)
-- All migrations 0001–0019 apply cleanly. (S11 added 0019_create_invitation.)
+- All migrations 0001–0019 apply cleanly. (S12 added no migrations — purely runtime hardening + ops.)
 
 ## Resume workflow
 

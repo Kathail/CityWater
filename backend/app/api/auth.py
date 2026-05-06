@@ -3,13 +3,13 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, current_app, g, jsonify, request
 from flask_login import current_user, login_required, login_user, logout_user
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select
 
 from app.errors import AuthError, ConflictError, ValidationError
-from app.extensions import csrf, db
+from app.extensions import csrf, db, limiter
 from app.models import Role, Tenant, User, UserRole
 from app.schemas.auth import (
     LoginRequest,
@@ -50,8 +50,17 @@ def _tenant_payload(tenant: Tenant) -> dict:
     return TenantRead.model_validate(tenant).model_dump(mode="json")
 
 
+def _register_limit() -> str:
+    return current_app.config["SETTINGS"].rate_limit_register
+
+
+def _login_limit() -> str:
+    return current_app.config["SETTINGS"].rate_limit_login
+
+
 @auth_bp.post("/register-tenant")
 @csrf.exempt
+@limiter.limit(_register_limit)
 def register_tenant():
     data = _validate(RegisterTenantRequest, request.get_json(silent=True) or {})
 
@@ -111,6 +120,7 @@ def register_tenant():
 
 @auth_bp.post("/login")
 @csrf.exempt
+@limiter.limit(_login_limit)
 def login():
     data = _validate(LoginRequest, request.get_json(silent=True) or {})
     g.skip_tenant_filter = True

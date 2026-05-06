@@ -5,7 +5,11 @@ from flask_login import current_user
 from flask_wtf.csrf import generate_csrf
 from sqlalchemy import select
 
-from app import models  # noqa: F401  populate Base.metadata for migrations + create_all
+from app import (
+    models,  # noqa: F401  populate Base.metadata for migrations + create_all
+    security,
+)
+from app.api.admin_audit import admin_audit_bp
 from app.api.asset_classes import asset_classes_bp
 from app.api.assets import assets_bp
 from app.api.auth import auth_bp
@@ -24,7 +28,7 @@ from app.api.wo_templates import wo_templates_bp
 from app.api.work_orders import work_orders_bp
 from app.config import Settings
 from app.errors import register_error_handlers
-from app.extensions import csrf, db, login_manager, migrate
+from app.extensions import csrf, db, limiter, login_manager, migrate
 from app.logging import configure_logging
 from app.models import User
 from app.services import audit, tenancy  # noqa: F401  register session listeners
@@ -51,6 +55,18 @@ def create_app(settings: Settings | None = None) -> Flask:
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+
+    # Rate limiting — Redis if configured, in-memory otherwise (dev/test).
+    storage_uri = settings.redis_url if settings.redis_url else "memory://"
+    app.config["RATELIMIT_STORAGE_URI"] = storage_uri
+    app.config["RATELIMIT_HEADERS_ENABLED"] = True
+    # Disable globally during tests so a flaky test machine doesn't trip
+    # 429s mid-suite. Production + dev keep limits on.
+    app.config["RATELIMIT_ENABLED"] = settings.environment != "test"
+    limiter.init_app(app)
+
+    # Security headers, request IDs, structured request logging.
+    security.install(app)
 
     @login_manager.user_loader
     def load_user(user_id: str):
@@ -112,6 +128,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(pacp_codes_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(service_requests_bp)
+    app.register_blueprint(admin_audit_bp)
 
     from app.cli.seed_demo import register as register_seed_demo
 
