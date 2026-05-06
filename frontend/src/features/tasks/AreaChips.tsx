@@ -29,35 +29,27 @@ export function AreaChips({
   taskDomain?: string | null;
   className?: string;
 }) {
-  if (!areas || areas.length === 0) return null;
-
   const primaryKind = systemKindForDomain(taskDomain);
+  const visible = (areas ?? []).filter(
+    (a) => a.kind === "maintenance" || a.kind === primaryKind,
+  );
+  if (visible.length === 0) return null;
 
   return (
     <ul className={`flex flex-wrap gap-1.5 ${className ?? ""}`}>
-      {areas.map((a) => {
-        const isPrimary = a.kind === "maintenance" || a.kind === primaryKind;
-        return (
-          <li
-            key={a.id}
-            title={`${KIND_LABEL[a.kind]} — ${a.code}`}
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${
-              isPrimary
-                ? "border border-slate-700 bg-slate-900/80 text-slate-200"
-                : "border border-slate-800 bg-slate-950/40 text-slate-500"
-            }`}
-          >
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{
-                backgroundColor: a.color ?? "#475569",
-                opacity: isPrimary ? 1 : 0.5,
-              }}
-            />
-            {a.name}
-          </li>
-        );
-      })}
+      {visible.map((a) => (
+        <li
+          key={a.id}
+          title={`${KIND_LABEL[a.kind]} — ${a.code}`}
+          className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[11px] text-slate-200"
+        >
+          <span
+            className="inline-block h-2 w-2 rounded-full"
+            style={{ backgroundColor: a.color ?? "#475569" }}
+          />
+          {a.name}
+        </li>
+      ))}
     </ul>
   );
 }
