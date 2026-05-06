@@ -10,6 +10,8 @@ import { RequireAuth } from "./features/auth/RequireAuth";
 import { TenantHomePage } from "./features/auth/TenantHomePage";
 import { InspectionDetailPage } from "./features/inspections/InspectionDetailPage";
 import { InspectionListPage } from "./features/inspections/InspectionListPage";
+import { ReportDetailPage } from "./features/reports/ReportDetailPage";
+import { ReportsPage } from "./features/reports/ReportsPage";
 import { ServiceRequestDetailPage } from "./features/service-requests/ServiceRequestDetailPage";
 import { ServiceRequestListPage } from "./features/service-requests/ServiceRequestListPage";
 import { WorkOrderDetailPage } from "./features/work-orders/WorkOrderDetailPage";
@@ -56,6 +58,8 @@ export function App() {
             <Route path="inspections/:n" element={<InspectionDetailPage />} />
             <Route path="service-requests" element={<ServiceRequestListPage />} />
             <Route path="service-requests/:sr" element={<ServiceRequestDetailPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="reports/:reportSlug" element={<ReportDetailPage />} />
             <Route
               path="map"
               element={
