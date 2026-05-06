@@ -693,13 +693,19 @@ def _seed() -> None:
         reported_at=datetime.now(UTC) - timedelta(days=2),
     )
 
-    # Task definitions — start with WAT-TASK-DISCOLOURED so the slice is
-    # provable end-to-end on a fresh seed.
+    # Task definitions — WAT-TASK-DISCOLOURED carries the rich form /
+    # prefill / canned-comments definition (the keystone proof). The
+    # consolidated catalog seeds the rest of the operator catalog
+    # idempotently and won't clobber discoloured.
     from app.models import TaskDefinition
+    from app.seeds.tasks.catalog import seed_tasks
     from app.seeds.tasks.wat_discoloured import TASK_WAT_DISCOLOURED
 
     td = TaskDefinition(tenant_id=tenant.id, **TASK_WAT_DISCOLOURED)
     db.session.add(td)
+    db.session.flush()  # so the catalog seed sees discoloured as existing
+
+    seed_tasks(db.session, tenant.id)
 
     db.session.commit()
 
