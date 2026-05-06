@@ -1,0 +1,29 @@
+server {
+    # Railway routes by Host header to the per-service public domain;
+    # `_` is a catch-all that accepts any host (the *.up.railway.app
+    # subdomain plus the citywater.ca custom domain).
+    listen ${PORT};
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Railway captures stdout already.
+    access_log /dev/stdout;
+    error_log /dev/stderr warn;
+
+    # Tailwind output is content-stable across deploys; cache hard.
+    # Bust by changing the filename when you ever switch to hashed
+    # assets (e.g. output.[hash].css).
+    location = /output.css {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Anything else — single-page brochure today, but try_files keeps
+    # the door open if you ever add /faq, /pricing, etc. without
+    # needing an nginx restart.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

@@ -5,7 +5,7 @@
   "description": "citywater.ca — brochure / landing page",
   "scripts": {
     "dev": "tailwindcss -i ./src/input.css -o ./dist/output.css --watch",
-    "build": "tailwindcss -i ./src/input.css -o ./dist/output.css --minify && cp index.html dist/index.html && cp -r public/* dist/ 2>/dev/null || true"
+    "build": "tailwindcss -i ./src/input.css -o ./dist/output.css --minify && sed 's|./dist/output.css|./output.css|g' index.html > dist/index.html && cp -r public/* dist/ 2>/dev/null || true"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.0.0",

@@ -30,21 +30,26 @@ Outputs to `dist/`:
 - `dist/index.html` — copied verbatim
 - `dist/{public assets}` — copied from `public/` if present
 
-## Deploy — Cloudflare Pages
+## Deploy — Railway
 
-The site deploys from this directory of the monorepo.
+Same Railway project as the app. The brochure is its own service:
+node builds the static bundle, nginx serves it.
 
-**Cloudflare Pages settings:**
+**Railway service settings:**
 
-- Build command: `cd marketing && npm install && npm run build`
-- Build output directory: `marketing/dist`
-- Root directory: (leave blank — repo root)
-- Environment variable: `NODE_VERSION=20`
+- Source: this repo, branch `main`
+- Root directory: `marketing/`
+- Build: Dockerfile (auto-detected — `marketing/Dockerfile`)
+- No env vars required (`PORT` injected by Railway, defaults handle the rest)
 
 **Custom domain:**
 
-- `citywater.ca` (apex) → Cloudflare Pages
-- `www.citywater.ca` → 301 redirect to apex (configure in Cloudflare DNS / Page Rules)
+- `citywater.ca` (apex) → Railway service custom domain
+- `www.citywater.ca` → 301 redirect to apex (set up at the DNS provider as a flat redirect)
+
+DNS lives at Cloudflare. For the apex, Cloudflare's "CNAME flattening"
+lets you CNAME the apex to Railway's `*.up.railway.app` target — no
+need for an A/AAAA record.
 
 ## Replacing the screenshot
 
