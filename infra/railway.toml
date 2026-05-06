@@ -1,21 +1,49 @@
 # Railway config — https://docs.railway.app/reference/config-as-code
 #
-# Two services are deployed from this repo:
-#   - backend  (root: backend/, Dockerfile build, gunicorn)
-#   - frontend (root: frontend/, Dockerfile build, nginx static)
+# This file documents the BACKEND service deploy contract. Per-service
+# settings (root directory, env, plugins, custom domain) are configured
+# in the Railway dashboard. The frontend service uses default Dockerfile
+# build/run with envsubst-driven nginx config (see frontend/Dockerfile).
 #
-# Postgres + Redis are provisioned as Railway plugins and exposed via env.
+# Production layout for app.citywater.ca:
 #
-# Per-service settings (root directory, env, plugins) are configured in the
-# Railway dashboard. This file documents the deploy contract for the backend
-# service; the frontend uses default Dockerfile build/run.
+#   ┌─────────────────────────────────────────────────────────┐
+#   │  app.citywater.ca   →   Railway "frontend" service      │
+#   │   (custom domain)        nginx serves Vite build,       │
+#   │                          proxies /api → backend         │
+#   └─────────────────────────────────────────────────────────┘
+#                                       │ private network
+#                                       ▼
+#   ┌─────────────────────────────────────────────────────────┐
+#   │  Railway "backend" service                              │
+#   │   gunicorn → Flask                                      │
+#   │   ProxyFix reads X-Forwarded-* from Railway's proxy     │
+#   └─────────────────────────────────────────────────────────┘
+#                                       │
+#                                       ▼
+#   ┌─────────────────────────────────────────────────────────┐
+#   │  Railway plugins:  Postgres (PostGIS), Redis            │
+#   │                    URLs injected via DATABASE_URL,      │
+#   │                    REDIS_URL                            │
+#   └─────────────────────────────────────────────────────────┘
+#
+# Same-origin (frontend proxies /api) means no CORS, no SameSite=None
+# gymnastics. SESSION_COOKIE_SAMESITE=Lax is correct.
+#
+# Cron services (Railway Cron) for background tasks:
+#   - schedules tick:  every 5 min   `flask schedules tick`
+#   - geocode tick:    every 1 min   `flask geocode tick`
+# Both are CLI commands defined in app/cli/. See docs/DEPLOY.md.
 
 [build]
 builder = "DOCKERFILE"
 
 [deploy]
 # Backend: run pending migrations, then serve via gunicorn on Railway's $PORT.
-startCommand = "flask db upgrade && gunicorn --bind 0.0.0.0:$PORT --workers 2 --access-logfile - app.wsgi:app"
+# WEB_CONCURRENCY tunable in env (default 2 — Railway hobby plan has limited
+# CPU; bump for paid plans). --forwarded-allow-ips=* lets gunicorn trust the
+# X-Forwarded-* headers Railway's proxy sets; ProxyFix then reads them.
+startCommand = "flask --app app.wsgi db upgrade && gunicorn --bind 0.0.0.0:$PORT --workers ${WEB_CONCURRENCY:-2} --access-logfile - --forwarded-allow-ips=* app.wsgi:app"
 healthcheckPath = "/healthz"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

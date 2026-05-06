@@ -4,6 +4,7 @@ from flask import Flask, g, jsonify
 from flask_login import current_user
 from flask_wtf.csrf import generate_csrf
 from sqlalchemy import select
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import (
     models,  # noqa: F401  populate Base.metadata for migrations + create_all
@@ -48,6 +49,15 @@ def create_app(settings: Settings | None = None) -> Flask:
     configure_logging(settings)
 
     app = Flask(__name__)
+    # Behind Railway's load balancer the inbound socket is the proxy, not the
+    # client. ProxyFix rewrites WSGI environ from X-Forwarded-* headers so:
+    #   - request.is_secure / url_scheme reflect the original https request
+    #     (Secure-cookie + HSTS branches in security.py + __init__.py)
+    #   - request.remote_addr is the real client (rate-limit + audit log)
+    # x_for=1 / x_proto=1 / x_host=1 — Railway sets exactly one hop. Bumping
+    # the count would let a client spoof these headers if they ever reached
+    # the app directly. Keep at 1 unless infrastructure changes.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.config["SETTINGS"] = settings
     app.config["SECRET_KEY"] = settings.secret_key
     app.config["SQLALCHEMY_DATABASE_URI"] = settings.database_url
