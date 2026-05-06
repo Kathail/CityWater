@@ -141,3 +141,48 @@ export function deleteAsset(asset_uid: string): Promise<void> {
 export function getAssetHistory(asset_uid: string): Promise<AssetHistoryResponse> {
   return apiJson<AssetHistoryResponse>(`/api/v1/assets/${encodeURIComponent(asset_uid)}/history`);
 }
+
+export interface ImportError {
+  row: number;
+  code: string;
+  message: string;
+  raw?: Record<string, unknown>;
+}
+
+export interface ImportResult {
+  summary: {
+    created: number;
+    updated: number;
+    skipped: number;
+    failed: number;
+  };
+  errors: ImportError[];
+}
+
+export interface ImportInput {
+  file: File;
+  on_conflict?: "skip" | "update";
+  dry_run?: boolean;
+}
+
+export function importAssets(input: ImportInput): Promise<ImportResult> {
+  const fd = new FormData();
+  fd.append("file", input.file);
+  if (input.on_conflict) fd.append("on_conflict", input.on_conflict);
+  if (input.dry_run) fd.append("dry_run", "true");
+  return apiJson<ImportResult>("/api/v1/assets/import", {
+    method: "POST",
+    body: fd,
+  });
+}
+
+export function exportAssetsUrl(
+  format: "csv" | "geojson",
+  filters: Record<string, string | undefined> = {},
+): string {
+  const params = new URLSearchParams({ format });
+  for (const [k, v] of Object.entries(filters)) {
+    if (v !== undefined && v !== null && v !== "") params.set(k, v);
+  }
+  return `/api/v1/assets/export?${params.toString()}`;
+}

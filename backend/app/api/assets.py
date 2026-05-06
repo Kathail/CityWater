@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request, stream_with_context
 from flask_login import current_user, login_required
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import func, select
@@ -14,6 +14,8 @@ from app.extensions import db
 from app.models import Asset, AssetClass, AuditLog, User
 from app.schemas.asset import AssetCreate, AssetUpdate
 from app.services.asset_attrs import validate_attrs_against_class
+from app.services.asset_export import stream_csv, stream_geojson
+from app.services.asset_import import import_csv, import_geojson
 from app.services.asset_uid import next_asset_uid
 from app.services.geometry import geojson_to_wkb, wkb_to_geojson
 from app.services.permissions import require_roles
@@ -281,4 +283,94 @@ def get_asset_history(asset_uid: str):
             "page_size": page_size,
             "total": total,
         }
+    )
+
+
+def _build_asset_query() -> Any:
+    """Shared query-builder used by list_assets and export_assets."""
+    stmt = select(Asset)
+
+    klass = request.args.get("class")
+    if klass:
+        stmt = stmt.where(Asset.class_code == klass)
+
+    domain = request.args.get("domain")
+    if domain:
+        stmt = stmt.join(AssetClass, Asset.class_code == AssetClass.code).where(
+            AssetClass.domain == domain
+        )
+
+    status = request.args.get("status")
+    if status:
+        stmt = stmt.where(Asset.status == status)
+
+    bbox = request.args.get("bbox")
+    if bbox:
+        min_lon, min_lat, max_lon, max_lat = _parse_bbox(bbox)
+        stmt = stmt.where(
+            func.ST_Intersects(
+                Asset.geom,
+                func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326),
+            )
+        )
+
+    q = (request.args.get("q") or "").strip()
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(
+            (Asset.asset_uid.ilike(like))
+            | (Asset.material.ilike(like))
+            | (Asset.manufacturer.ilike(like))
+        )
+    return stmt
+
+
+@assets_bp.post("/import")
+@login_required
+@require_roles("admin", "supervisor")
+def import_assets():
+    file = request.files.get("file")
+    if not file:
+        raise ValidationError("missing 'file' field", code="missing_file")
+
+    on_conflict = request.form.get("on_conflict", "skip")
+    if on_conflict not in ("skip", "update"):
+        raise ValidationError("on_conflict must be 'skip' or 'update'", code="bad_on_conflict")
+    dry_run = request.form.get("dry_run", "").lower() == "true"
+
+    filename = (file.filename or "").lower()
+    if filename.endswith(".csv"):
+        result = import_csv(file.stream, on_conflict=on_conflict, dry_run=dry_run)
+    elif filename.endswith(".geojson") or filename.endswith(".json"):
+        result = import_geojson(file.stream, on_conflict=on_conflict, dry_run=dry_run)
+    else:
+        raise ValidationError("file must be .csv, .geojson, or .json", code="unsupported_format")
+    return jsonify(result)
+
+
+@assets_bp.get("/export")
+@login_required
+def export_assets():
+    fmt = request.args.get("format", "geojson")
+    if fmt not in ("csv", "geojson"):
+        raise ValidationError("format must be 'csv' or 'geojson'", code="bad_format")
+
+    stmt = _build_asset_query().order_by(Asset.created_at)
+
+    if fmt == "csv":
+        return Response(
+            stream_with_context(stream_csv(stmt)),
+            mimetype="text/csv",
+            headers={
+                "Content-Disposition": 'attachment; filename="assets.csv"',
+                "Cache-Control": "private, no-store",
+            },
+        )
+    return Response(
+        stream_with_context(stream_geojson(stmt)),
+        mimetype="application/geo+json",
+        headers={
+            "Content-Disposition": 'attachment; filename="assets.geojson"',
+            "Cache-Control": "private, no-store",
+        },
     )
