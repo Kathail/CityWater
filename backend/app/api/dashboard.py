@@ -16,8 +16,10 @@ from sqlalchemy import desc, func, or_, select
 
 from app.extensions import db
 from app.models import (
+    Asset,
     AuditLog,
     Comment,
+    ServiceArea,
     ServiceRequest,
     WorkOrder,
     WorkOrderAsset,
@@ -43,6 +45,7 @@ def get_dashboard():
         "wo_by_category_30d": _wo_by_category(month_ago),
         "sr_by_priority_30d": _sr_by_priority(month_ago),
         "throughput_7d": _throughput_7d(week_ago, now),
+        "by_area": _by_area(now),
     }
     return jsonify(payload)
 
@@ -314,6 +317,75 @@ def _sr_by_priority(since: datetime) -> list[dict[str, Any]]:
         [{"priority": r[0], "count": int(r[1])} for r in rows],
         key=lambda x: order.get(x["priority"], 99),
     )
+
+
+def _by_area(now: datetime) -> list[dict[str, Any]]:
+    """Per service area: active WOs, overdue WOs, and active SRs.
+
+    An entity belongs to an area when its linked asset's geom intersects
+    the area's polygon. This is read-time spatial — fine for tenants
+    with hundreds of areas + thousands of active items; switch to a
+    materialized join later if it ever becomes the bottleneck.
+    """
+    WO_ACTIVE = ("open", "assigned", "in_progress", "on_hold")
+    SR_ACTIVE = ("new", "triaged", "dispatched")
+
+    # active WOs per area
+    wo_q = (
+        select(ServiceArea.id.label("area_id"), func.count(WorkOrder.id).label("n"))
+        .select_from(ServiceArea)
+        .join(Asset, func.ST_Intersects(ServiceArea.geom, Asset.geom))
+        .join(WorkOrder, WorkOrder.asset_id == Asset.id)
+        .where(WorkOrder.status.in_(WO_ACTIVE))
+        .where(ServiceArea.deleted_at.is_(None))
+        .group_by(ServiceArea.id)
+    )
+    wo_by_area = {r.area_id: int(r.n) for r in db.session.execute(wo_q).all()}
+
+    # overdue WOs per area
+    od_q = (
+        select(ServiceArea.id.label("area_id"), func.count(WorkOrder.id).label("n"))
+        .select_from(ServiceArea)
+        .join(Asset, func.ST_Intersects(ServiceArea.geom, Asset.geom))
+        .join(WorkOrder, WorkOrder.asset_id == Asset.id)
+        .where(WorkOrder.status.in_(WO_ACTIVE))
+        .where(WorkOrder.due_by < now)
+        .where(ServiceArea.deleted_at.is_(None))
+        .group_by(ServiceArea.id)
+    )
+    overdue_by_area = {r.area_id: int(r.n) for r in db.session.execute(od_q).all()}
+
+    # active SRs per area
+    sr_q = (
+        select(ServiceArea.id.label("area_id"), func.count(ServiceRequest.id).label("n"))
+        .select_from(ServiceArea)
+        .join(Asset, func.ST_Intersects(ServiceArea.geom, Asset.geom))
+        .join(ServiceRequest, ServiceRequest.asset_id == Asset.id)
+        .where(ServiceRequest.status.in_(SR_ACTIVE))
+        .where(ServiceArea.deleted_at.is_(None))
+        .group_by(ServiceArea.id)
+    )
+    sr_by_area = {r.area_id: int(r.n) for r in db.session.execute(sr_q).all()}
+
+    # Hydrate the area metadata + counts.
+    areas = db.session.scalars(
+        select(ServiceArea)
+        .where(ServiceArea.deleted_at.is_(None))
+        .order_by(ServiceArea.kind, ServiceArea.name)
+    ).all()
+    return [
+        {
+            "id": a.id,
+            "code": a.code,
+            "name": a.name,
+            "kind": a.kind,
+            "color": a.color,
+            "active_wos": wo_by_area.get(a.id, 0),
+            "overdue_wos": overdue_by_area.get(a.id, 0),
+            "active_srs": sr_by_area.get(a.id, 0),
+        }
+        for a in areas
+    ]
 
 
 def _throughput_7d(week_ago: datetime, now: datetime) -> list[dict[str, Any]]:

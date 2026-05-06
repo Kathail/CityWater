@@ -56,6 +56,17 @@ export interface DashboardThroughputDay {
   completed: number;
 }
 
+export interface DashboardAreaRow {
+  id: number;
+  code: string;
+  name: string;
+  kind: "maintenance" | "water_system" | "sewer_system" | "storm_system";
+  color: string | null;
+  active_wos: number;
+  overdue_wos: number;
+  active_srs: number;
+}
+
 export interface DashboardResponse {
   wo_kpis: DashboardWoKpis;
   sr_kpis: DashboardSrKpis;
@@ -64,6 +75,7 @@ export interface DashboardResponse {
   wo_by_category_30d: DashboardCategoryBucket[];
   sr_by_priority_30d: DashboardPriorityBucket[];
   throughput_7d: DashboardThroughputDay[];
+  by_area: DashboardAreaRow[];
 }
 
 export function getDashboard(): Promise<DashboardResponse> {

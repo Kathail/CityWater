@@ -34,6 +34,7 @@ export function TenantHomePage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
           {dash.data && <TodayQueue items={dash.data.today_queue} slug={tenant.slug} />}
+          {dash.data && <ByArea rows={dash.data.by_area} slug={tenant.slug} />}
           {dash.data && <CategoryChart buckets={dash.data.wo_by_category_30d} />}
         </div>
         <div className="space-y-4">
@@ -289,6 +290,117 @@ function PriorityChip({ priority, overdue }: { priority: string; overdue: boolea
         {priority}
       </span>
     </div>
+  );
+}
+
+// ============== BY AREA ==============
+
+const AREA_KIND_GROUP: Record<string, string> = {
+  maintenance: "Maintenance districts",
+  water_system: "Water systems",
+  sewer_system: "Wastewater systems",
+  storm_system: "Storm drainage",
+};
+
+function ByArea({
+  rows,
+  slug,
+}: {
+  rows: DashboardResponse["by_area"];
+  slug: string;
+}) {
+  if (rows.length === 0) {
+    return (
+      <section className="rounded-md border border-slate-800 bg-slate-900 p-3">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400">
+          By area
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          No service areas configured yet.{" "}
+          <Link
+            to={`/${slug}/admin`}
+            className="text-blue-400 hover:text-blue-300 hover:underline"
+          >
+            Set up districts and systems →
+          </Link>
+        </p>
+      </section>
+    );
+  }
+
+  // Group by kind so the panel reads as: Maintenance — districts; Water systems — systems; etc.
+  const byKind: Record<string, DashboardResponse["by_area"]> = {};
+  for (const r of rows) (byKind[r.kind] ??= []).push(r);
+
+  return (
+    <section className="rounded-md border border-slate-800 bg-slate-900 p-3">
+      <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400">
+        By area
+      </h2>
+      <div className="mt-2 space-y-3">
+        {Object.entries(byKind).map(([kind, kindRows]) => (
+          <div key={kind}>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
+              {AREA_KIND_GROUP[kind] ?? kind}
+            </p>
+            <ul className="mt-1 divide-y divide-slate-800/60">
+              {kindRows.map((a) => (
+                <li
+                  key={a.id}
+                  className="flex items-center gap-3 py-1.5 text-sm"
+                >
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: a.color ?? "#475569" }}
+                  />
+                  <span className="flex-1 truncate text-slate-200">{a.name}</span>
+                  <ByAreaStat label="WOs" value={a.active_wos} accent="blue" />
+                  <ByAreaStat label="SRs" value={a.active_srs} accent="amber" />
+                  {a.overdue_wos > 0 && (
+                    <ByAreaStat
+                      label="overdue"
+                      value={a.overdue_wos}
+                      accent="red"
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ByAreaStat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent: "blue" | "amber" | "red";
+}) {
+  const cls =
+    accent === "red"
+      ? "text-red-300"
+      : accent === "amber"
+        ? "text-amber-300"
+        : "text-blue-300";
+  if (value === 0) {
+    return (
+      <span className="inline-flex items-baseline gap-1 text-[11px] tabular-nums text-slate-600">
+        <span>{value}</span>
+        <span className="text-[10px] uppercase">{label}</span>
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex items-baseline gap-1 text-[11px] tabular-nums ${cls}`}>
+      <span className="text-sm font-semibold">{value}</span>
+      <span className="text-[10px] uppercase text-slate-500">{label}</span>
+    </span>
   );
 }
 
