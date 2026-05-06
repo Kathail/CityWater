@@ -28,6 +28,7 @@ from app.services.geometry import geojson_to_wkb, wkb_to_geojson
 from app.services.permissions import require_roles
 from app.services.sr_duplicates import find_duplicates
 from app.services.sr_number import next_sr_number
+from app.services.tasks.match import find_matching_task
 from app.services.wo_number import next_wo_number
 
 service_requests_bp = Blueprint("service_requests", __name__, url_prefix="/api/v1/service-requests")
@@ -222,6 +223,16 @@ def create_service_request():
             reported_at=reported_at,
         )
 
+    # Match the SR to its citizen-issue task definition (if any). Done
+    # up-front so the new row carries `task_definition_id` from creation
+    # — operators landing on the detail page see the form / procedure /
+    # smart-comment chips immediately, no second round-trip.
+    matched_task = find_matching_task(
+        tenant_id=current_user.tenant_id,
+        source="service_request",
+        payload={"category": data.category, "domain": data.domain},
+    )
+
     sr_number = next_sr_number(current_user.tenant_id)
     last_error: IntegrityError | None = None
     sr: ServiceRequest | None = None
@@ -243,6 +254,7 @@ def create_service_request():
             description=data.description,
             intake_user_id=current_user.id,
             attrs=data.attrs,
+            task_definition_id=matched_task.id if matched_task else None,
         )
         db.session.add(sr)
         try:

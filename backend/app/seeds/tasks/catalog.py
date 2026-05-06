@@ -181,6 +181,10 @@ TASKS: list[dict[str, Any]] = [
         "default_domain": "water",
         "applies_to_classes": ["WAT_HYD"],
         "triggers": [
+            # `damaged_asset` is the live SR-enum value; the more specific
+            # `hydrant_hit` / `damaged_hydrant` are aspirational and become
+            # live once the SR enum is extended.
+            {"from": "service_request", "category": "damaged_asset"},
             {"from": "service_request", "category": "hydrant_hit"},
             {"from": "service_request", "category": "damaged_hydrant"},
         ],
