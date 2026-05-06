@@ -18,6 +18,8 @@ const CATEGORIES: SrCategory[] = [
   "flooding",
   "odour",
   "damaged_asset",
+  "discoloured_water",
+  "water_quality",
   "other",
 ];
 

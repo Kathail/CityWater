@@ -17,6 +17,7 @@ const WO_CATEGORIES = [
   "valve_exercise",
   "cleaning",
   "inspection",
+  "investigation",
   "repair",
   "install",
   "other",

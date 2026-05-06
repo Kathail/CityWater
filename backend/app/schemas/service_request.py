@@ -13,6 +13,8 @@ SrCategory = Literal[
     "flooding",
     "odour",
     "damaged_asset",
+    "discoloured_water",
+    "water_quality",
     "other",
 ]
 SrDomain = Literal["water", "sewer", "storm"]
@@ -129,6 +131,7 @@ class WorkOrderDispatchPayload(BaseModel):
         "valve_exercise",
         "cleaning",
         "inspection",
+        "investigation",
         "repair",
         "install",
         "other",

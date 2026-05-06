@@ -16,10 +16,7 @@ TASK_WAT_DISCOLOURED: dict[str, Any] = {
     "title": "Discoloured water response",
     "summary": "Investigate, flush, verify residual, notify customer.",
     "produces": "work_order",
-    # `investigation` isn't in the existing WO category enum yet — using
-    # `inspection` as the closest fit. A migration to add 'investigation'
-    # cleanly is content for a follow-up PR.
-    "default_category": "inspection",
+    "default_category": "investigation",
     "default_priority": "normal",
     "default_domain": "water",
     "applies_to_classes": ["WAT_HYD", "WAT_MAIN", "WAT_SVC"],

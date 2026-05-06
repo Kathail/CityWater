@@ -13,6 +13,7 @@ WoCategory = Literal[
     "valve_exercise",
     "cleaning",
     "inspection",
+    "investigation",
     "repair",
     "install",
     "other",

@@ -32,6 +32,8 @@ VALID_CATEGORIES: tuple[str, ...] = (
     "flooding",
     "odour",
     "damaged_asset",
+    "discoloured_water",  # added in 0026 — triggers the discoloured task
+    "water_quality",  # added in 0026 — alt trigger
     "other",
 )
 VALID_DOMAINS: tuple[str, ...] = ("water", "sewer", "storm")

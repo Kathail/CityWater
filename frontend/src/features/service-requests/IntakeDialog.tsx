@@ -16,6 +16,8 @@ const CATEGORIES: { value: SrCategory; label: string }[] = [
   { value: "flooding", label: "Flooding" },
   { value: "odour", label: "Odour" },
   { value: "damaged_asset", label: "Damaged asset" },
+  { value: "discoloured_water", label: "Discoloured water" },
+  { value: "water_quality", label: "Water quality" },
   { value: "other", label: "Other" },
 ];
 

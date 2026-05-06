@@ -7,6 +7,8 @@ export type SrCategory =
   | "flooding"
   | "odour"
   | "damaged_asset"
+  | "discoloured_water"
+  | "water_quality"
   | "other";
 
 export type SrDomain = "water" | "sewer" | "storm";
@@ -128,6 +130,7 @@ export interface DispatchInput {
       | "valve_exercise"
       | "cleaning"
       | "inspection"
+      | "investigation"
       | "repair"
       | "install"
       | "other";

@@ -73,7 +73,7 @@ def test_prefill_pulls_from_service_request(app, tenant):
         sr = ServiceRequest(
             tenant_id=tenant.id,
             sr_number="SR-TEST-1",
-            category="other",
+            category="discoloured_water",
             domain="water",
             priority="normal",
             status="new",
@@ -115,7 +115,7 @@ def test_prefill_doesnt_overwrite_sr_with_asset_data(app, tenant):
         sr = ServiceRequest(
             tenant_id=tenant.id,
             sr_number="SR-TEST-2",
-            category="other",
+            category="discoloured_water",
             domain="water",
             priority="normal",
             status="new",

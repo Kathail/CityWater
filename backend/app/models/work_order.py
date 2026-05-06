@@ -39,6 +39,7 @@ VALID_CATEGORIES: tuple[str, ...] = (
     "valve_exercise",
     "cleaning",
     "inspection",
+    "investigation",  # added in 0026 for the discoloured-water task
     "repair",
     "install",
     "other",
