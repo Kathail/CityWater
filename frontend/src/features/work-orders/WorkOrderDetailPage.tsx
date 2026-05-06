@@ -204,7 +204,9 @@ function TasksSection({ wo }: { wo: WorkOrderDetail }) {
 function TimeSection({ wo }: { wo: WorkOrderDetail }) {
   const queryClient = useQueryClient();
   const [day, setDay] = useState<"today" | "yesterday">("today");
-  const [durationMins, setDurationMins] = useState<number>(60);
+  // Additive: each chip tap *adds* its value to the running total. Tap 30
+  // then 15 to log 45m, or 2h then 30m for 2h 30m. Reset zeroes it.
+  const [durationMins, setDurationMins] = useState<number>(0);
   const [manualMode, setManualMode] = useState(false);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -215,11 +217,13 @@ function TimeSection({ wo }: { wo: WorkOrderDetail }) {
     onSuccess: () => {
       setStart("");
       setEnd("");
+      setDurationMins(0);
       queryClient.invalidateQueries({ queryKey: ["work-order", wo.wo_number] });
     },
   });
 
   function quickLog() {
+    if (durationMins <= 0) return;
     const ended = new Date();
     if (day === "yesterday") {
       // Anchor to 4pm yesterday — typical end-of-shift, mirrors paper habit.
@@ -285,24 +289,34 @@ function TimeSection({ wo }: { wo: WorkOrderDetail }) {
           </div>
 
           <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">
-              Duration
-            </p>
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="text-xs uppercase tracking-wider text-slate-500">
+                Duration
+              </p>
+              <p className="text-sm tabular-nums text-blue-300">
+                {formatDuration(durationMins)}
+              </p>
+            </div>
             <div className="flex flex-wrap gap-2">
               {[15, 30, 60, 120, 240, 480].map((m) => (
                 <button
                   key={m}
                   type="button"
-                  onClick={() => setDurationMins(m)}
-                  className={`min-h-11 rounded-full px-4 py-2 text-sm transition-colors ${
-                    durationMins === m
-                      ? "bg-blue-500/15 text-blue-200 ring-1 ring-blue-500/40"
-                      : "bg-slate-900 text-slate-300 ring-1 ring-slate-700 hover:bg-slate-800"
-                  }`}
+                  onClick={() => setDurationMins((d) => d + m)}
+                  className="min-h-11 rounded-full bg-slate-900 px-4 py-2 text-sm text-slate-200 ring-1 ring-slate-700 transition-colors hover:bg-slate-800 hover:ring-blue-500/40 active:bg-blue-500/15 active:ring-blue-500/60"
                 >
-                  {m < 60 ? `${m}m` : `${m / 60}h`}
+                  +{m < 60 ? `${m}m` : `${m / 60}h`}
                 </button>
               ))}
+              {durationMins > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDurationMins(0)}
+                  className="min-h-11 rounded-full px-3 py-2 text-xs text-slate-400 hover:text-red-300"
+                >
+                  Reset
+                </button>
+              )}
             </div>
           </div>
 
@@ -317,12 +331,14 @@ function TimeSection({ wo }: { wo: WorkOrderDetail }) {
             <button
               type="button"
               onClick={quickLog}
-              disabled={log.isPending}
+              disabled={log.isPending || durationMins <= 0}
               className="btn-primary min-h-11 px-5 py-2 text-sm"
             >
               {log.isPending
                 ? "Logging…"
-                : `Log ${durationMins < 60 ? `${durationMins}m` : `${durationMins / 60}h`} ${day}`}
+                : durationMins <= 0
+                  ? "Tap a chip to add time"
+                  : `Log ${formatDuration(durationMins)} ${day}`}
             </button>
           </div>
         </div>
@@ -397,6 +413,15 @@ function TimeSection({ wo }: { wo: WorkOrderDetail }) {
       )}
     </Section>
   );
+}
+
+function formatDuration(mins: number): string {
+  if (mins <= 0) return "0m";
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
 }
 
 function toLocalInput(d: Date): string {
