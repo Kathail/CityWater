@@ -41,11 +41,25 @@ const STATUSES: WoStatus[] = [
  *  that's not done. Drives the Active/All tab. */
 const ACTIVE_STATUSES: WoStatus[] = ["open", "assigned", "in_progress", "on_hold"];
 
+/** sessionStorage key the WO detail page reads to build a referrer-
+ * preserving "← Back to work orders" link. Saved on every render of
+ * the list page so coming back from a detail returns to the same
+ * scope/status/q the user was viewing. */
+const WO_LIST_REFERRER_KEY = "wo-list-referrer";
+
 export function WorkOrderListPage() {
   const [search, setSearch] = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
   const { slug } = useParams<{ slug: string }>();
   const queryClient = useQueryClient();
+
+  // Stash the current URL+query so the detail page's back link can
+  // restore the operator's filters. Cheap to write on every render.
+  useEffect(() => {
+    if (!slug) return;
+    const qs = search.toString();
+    sessionStorage.setItem(WO_LIST_REFERRER_KEY, `/${slug}/work-orders${qs ? `?${qs}` : ""}`);
+  }, [slug, search]);
 
   // Deep-link prefill: another page can navigate here with
   // ?new=1&asset_uid=HYD-00001&title=Inspect+hydrant... and we'll

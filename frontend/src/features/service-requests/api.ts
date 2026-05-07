@@ -28,6 +28,8 @@ export interface ServiceRequestRead {
   caller_phone: string | null;
   caller_email: string | null;
   reported_address: string | null;
+  asset_id: number | null;
+  asset_uid: string | null;
   location: { type: "Point"; coordinates: [number, number] } | null;
   description: string | null;
   intake_user_id: number | null;

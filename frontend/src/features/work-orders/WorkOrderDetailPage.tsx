@@ -70,7 +70,16 @@ export function WorkOrderDetailPage() {
   return (
     <div className="p-4 sm:p-8 space-y-6 max-w-4xl">
       <header className="space-y-1">
-        <Link to={`/${slug}/work-orders`} className="text-sm text-slate-400 hover:underline">
+        <Link
+          to={
+            // Restore the filters the operator was viewing (?scope=mine,
+            // ?overdue=1, etc.) when they clicked into this WO. Falls
+            // back to the unfiltered list on first visit / after the
+            // tab is re-opened. The list page writes this on every render.
+            sessionStorage.getItem("wo-list-referrer") ?? `/${slug}/work-orders`
+          }
+          className="text-sm text-slate-400 hover:underline"
+        >
           ← Back to work orders
         </Link>
         <div className="flex items-center justify-between">

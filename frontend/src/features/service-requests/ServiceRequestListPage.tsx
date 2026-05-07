@@ -3,12 +3,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Alert } from "../../components/Alert";
 import { Button } from "../../components/Button";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Dash } from "../../components/Dash";
 import { RowActions } from "../../components/RowActions";
 import { EmptyState } from "../../components/States";
 import { StatusPill } from "../../components/StatusPill";
 import { SummaryBar } from "../../components/SummaryBar";
+import { showToast } from "../../components/Toast";
 import { formatDateTime } from "../../lib/format";
 import { translateApiError } from "../../lib/translateApiError";
 import { IntakeDialog } from "./IntakeDialog";
@@ -112,7 +112,6 @@ export function ServiceRequestListPage() {
   // Dispatch dialog which also creates the linked WO).
   type MutableSrStatus = "new" | "triaged" | "closed" | "duplicate";
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [closeConfirm, setCloseConfirm] = useState<string | null>(null);
   const update = useMutation<unknown, Error, { sr: string; status: MutableSrStatus }>({
     mutationFn: ({ sr, status }) => updateServiceRequest(sr, { status }),
     onSuccess: () => {
@@ -122,6 +121,30 @@ export function ServiceRequestListPage() {
     },
     onError: (e) => setErrorMessage(translateApiError(e)),
   });
+
+  /**
+   * Defer the mutation by 4s so a toast undo can cancel it before any
+   * network commit. Avoids the round-trip + state-flip + compensating
+   * mutate dance that "fire then undo" would require, while preserving
+   * the instant feel: the user sees the row gone from the active list
+   * (because the cache already hides closed SRs in the active scope —
+   * see scope filter above) the moment they click.
+   */
+  function deferMutate(sr: string, status: MutableSrStatus, label: string) {
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (!cancelled) update.mutate({ sr, status });
+    }, 4000);
+    showToast({
+      message: `${sr} ${label}.`,
+      tone: "success",
+      ttl: 4000,
+      undo: () => {
+        cancelled = true;
+        window.clearTimeout(timer);
+      },
+    });
+  }
 
   const hasFilters = !!(
     params.status ||
@@ -313,7 +336,7 @@ export function ServiceRequestListPage() {
                         <>
                           <RowActions.Separator />
                           <RowActions.Action
-                            onClick={() => update.mutate({ sr: sr.sr_number, status: "triaged" })}
+                            onClick={() => deferMutate(sr.sr_number, "triaged", "marked triaged")}
                           >
                             Mark triaged
                           </RowActions.Action>
@@ -322,11 +345,15 @@ export function ServiceRequestListPage() {
                       {!["closed", "duplicate"].includes(sr.status) && (
                         <>
                           <RowActions.Action
-                            onClick={() => update.mutate({ sr: sr.sr_number, status: "duplicate" })}
+                            onClick={() =>
+                              deferMutate(sr.sr_number, "duplicate", "marked as duplicate")
+                            }
                           >
                             Mark as duplicate
                           </RowActions.Action>
-                          <RowActions.Action onClick={() => setCloseConfirm(sr.sr_number)}>
+                          <RowActions.Action
+                            onClick={() => deferMutate(sr.sr_number, "closed", "closed")}
+                          >
                             Close without dispatch
                           </RowActions.Action>
                         </>
@@ -388,20 +415,6 @@ export function ServiceRequestListPage() {
       {intakeOpen && <IntakeDialog onClose={() => setIntakeOpen(false)} />}
 
       {errorMessage && <Alert>{errorMessage}</Alert>}
-
-      {closeConfirm && (
-        <ConfirmDialog
-          title={`Close ${closeConfirm}?`}
-          message="The service request will be closed without dispatching a work order."
-          confirmLabel="Close request"
-          confirmVariant="danger"
-          onCancel={() => setCloseConfirm(null)}
-          onConfirm={() => {
-            update.mutate({ sr: closeConfirm, status: "closed" });
-            setCloseConfirm(null);
-          }}
-        />
-      )}
     </div>
   );
 }

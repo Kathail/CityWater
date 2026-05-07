@@ -22,18 +22,60 @@ const PRIORITIES: SrPriority[] = ["low", "normal", "high", "emergency"];
 interface Props {
   srNumber: string;
   defaultPriority: SrPriority;
+  /** Source SR fields used to pre-fill the WO so the dispatcher doesn't
+   * retype the same context. The dispatcher can edit any of these
+   * before submitting. */
+  srDescription?: string | null;
+  srCategory?: string;
+  srAssetUid?: string | null;
   onClose: () => void;
   onDispatched: (woNumber: string) => void;
 }
 
-export function DispatchDialog({ srNumber, defaultPriority, onClose, onDispatched }: Props) {
+/** Map SR categories onto the closest WO category. WO categories are a
+ * narrower set of operational verbs ("flushing", "cleaning"); SRs are
+ * intake taxonomies ("discoloured_water", "sewer_backup"). The mapping
+ * here is "what crew does the dispatcher most likely send" — they can
+ * still override before submitting. */
+const SR_TO_WO_CATEGORY: Record<string, (typeof CATEGORIES)[number]> = {
+  main_break: "main_break",
+  low_pressure: "investigation",
+  no_water: "investigation",
+  sewer_backup: "cleaning",
+  flooding: "cleaning",
+  odour: "investigation",
+  damaged_asset: "repair",
+  discoloured_water: "flushing",
+  water_quality: "flushing",
+  service_leak: "repair",
+};
+
+/** Truncate the SR description to a reasonable WO title (140 char). */
+function deriveTitle(srNumber: string, description: string | null | undefined): string {
+  const desc = (description ?? "").trim();
+  if (!desc) return `Investigate ${srNumber}`;
+  // First sentence or first 140 chars, whichever is shorter.
+  const firstSentence = desc.split(/[.!?\n]/)[0].trim();
+  const candidate = firstSentence || desc;
+  return candidate.length > 140 ? `${candidate.slice(0, 137)}…` : candidate;
+}
+
+export function DispatchDialog({
+  srNumber,
+  defaultPriority,
+  srDescription,
+  srCategory,
+  srAssetUid,
+  onClose,
+  onDispatched,
+}: Props) {
   const dispatch = useDispatchServiceRequest(srNumber);
   const [form, setForm] = useState<DispatchInput["work_order"]>({
-    title: "",
+    title: deriveTitle(srNumber, srDescription),
     description: "",
-    category: "repair",
+    category: (srCategory && SR_TO_WO_CATEGORY[srCategory]) || "repair",
     priority: defaultPriority,
-    asset_uid: "",
+    asset_uid: srAssetUid ?? "",
     scheduled_for: "",
     due_by: "",
   });
@@ -110,6 +152,7 @@ export function DispatchDialog({ srNumber, defaultPriority, onClose, onDispatche
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             required
             aria-required="true"
+            autoFocus
             className={inputClass}
           />
         </label>

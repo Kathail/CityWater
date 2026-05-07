@@ -266,6 +266,9 @@ export function ServiceRequestDetailPage() {
         <DispatchDialog
           srNumber={data.sr_number}
           defaultPriority={data.priority}
+          srDescription={data.description}
+          srCategory={data.category}
+          srAssetUid={data.asset_uid}
           onClose={() => setDispatchOpen(false)}
           onDispatched={(wo) => {
             setDispatchOpen(false);
