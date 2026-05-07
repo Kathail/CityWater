@@ -598,6 +598,7 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
                             break
                         db.session.add(WorkOrderTimeLog(
                             work_order_id=wo.id,
+                            tenant_id=wo.tenant_id,
                             user_id=operator.id,
                             started_at=log_cursor,
                             ended_at=seg_end,

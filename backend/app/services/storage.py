@@ -74,11 +74,33 @@ def upload_attachment(
     return key
 
 
-def presigned_download_url(s3_key: str, expires_in: int | None = None) -> str:
+def presigned_download_url(
+    s3_key: str,
+    *,
+    expires_in: int | None = None,
+    download_filename: str | None = None,
+) -> str:
+    """Pre-sign a GET URL with `Content-Disposition: attachment` forced.
+
+    Defense-in-depth on top of the upload-time MIME allowlist (WO-P0-5):
+    even if a malicious file slips through, browsers must download
+    rather than render inline (no XSS via `image/svg+xml`,
+    `text/html` mislabelled as something else, etc.).
+    """
     s3 = _client()
+    params: dict[str, str | int] = {
+        "Bucket": _bucket(),
+        "Key": s3_key,
+    }
+    if download_filename is not None:
+        # Quote awkward chars; S3 re-encodes per RFC 6266.
+        safe = _safe_name(download_filename)
+        params["ResponseContentDisposition"] = f'attachment; filename="{safe}"'
+    else:
+        params["ResponseContentDisposition"] = "attachment"
     return s3.generate_presigned_url(
         "get_object",
-        Params={"Bucket": _bucket(), "Key": s3_key},
+        Params=params,
         ExpiresIn=expires_in if expires_in is not None else _settings().s3_presign_expiry_seconds,
     )
 

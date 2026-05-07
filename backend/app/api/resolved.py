@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from flask import Blueprint, jsonify
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy import select
 
 from app.errors import NotFoundError
@@ -23,6 +23,22 @@ from app.services.resolve import (
     resolve_service_request,
     resolve_work_order,
 )
+
+
+def _user_roles() -> set[str]:
+    return {r.code for r in current_user._get_current_object().roles}
+
+
+def _can_view_wo(wo: WorkOrder) -> bool:
+    """Mirror of the per-user gate in api/work_orders.py:_can_view_wo so
+    the /resolved companion endpoint enforces the same per-user
+    visibility rules. Without this, a tech could read scheduled_for /
+    priority / asset summary for any WO in their tenant including ones
+    not assigned to them."""
+    roles = _user_roles()
+    if roles & {"admin", "supervisor", "readonly"}:
+        return True
+    return wo.assigned_to == current_user.id
 
 resolved_bp = Blueprint("resolved", __name__, url_prefix="/api/v1")
 
@@ -55,7 +71,10 @@ def _asset_block(asset: Asset | None) -> dict[str, Any] | None:
 @login_required
 def resolved_work_order(wo_number: str):
     wo = db.session.scalar(select(WorkOrder).where(WorkOrder.wo_number == wo_number))
-    if not wo:
+    if not wo or not _can_view_wo(wo):
+        # Same 404-as-403 pattern as the main detail endpoint —
+        # don't leak that the wo_number exists if the caller can't
+        # see its content.
         raise NotFoundError(f"work order {wo_number} not found")
     loc = resolve_work_order(wo)
     return jsonify(

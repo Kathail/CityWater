@@ -114,3 +114,48 @@ def test_dashboard_is_tenant_scoped(app, admin_client, tenant):
     body = admin_client.get("/api/v1/dashboard").get_json()
     queue_wos = {q["wo_number"] for q in body["today_queue"]}
     assert "WO-2026-OTHER" not in queue_wos
+
+
+def test_dashboard_time_logs_are_tenant_scoped(app, admin_client, tenant, seeded):
+    """Regression for WO-P0-7 (and WO-P0-2 by extension): the dashboard's
+    `hours_this_week` and `stops_completed_this_week` summed across every
+    tenant's `work_order_time_log` and `work_order_asset` rows because
+    neither table was on TenantScopedMixin and the queries didn't join
+    through `work_order`. Adding the mixins (and tenant_id columns where
+    needed) brings them under the session-level filter listener."""
+    from datetime import UTC, datetime, timedelta
+    from decimal import Decimal
+
+    from app.models import WorkOrderTimeLog
+
+    g.skip_tenant_filter = True
+    other = make_tenant(slug="other-tl", name="Other-TL")
+    other_user = make_user(other, email="ops@other-tl.io", role_codes=["tech"])
+    other_wo = WorkOrder(
+        tenant_id=other.id,
+        wo_number="WO-2026-OTHER-TL",
+        type="reactive",
+        category="repair",
+        priority="normal",
+        status="completed",
+        title="Other-tenant WO",
+        completed_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+    db.session.add(other_wo)
+    db.session.flush()
+    db.session.add(
+        WorkOrderTimeLog(
+            tenant_id=other.id,
+            work_order_id=other_wo.id,
+            user_id=other_user.id,
+            started_at=datetime.now(UTC) - timedelta(hours=4),
+            ended_at=datetime.now(UTC) - timedelta(hours=1),
+            hours_decimal=Decimal("3.00"),
+        )
+    )
+    db.session.commit()
+
+    body = admin_client.get("/api/v1/dashboard").get_json()
+    # The other tenant's 3-hour log must NOT contribute to the acme
+    # tenant's hours_this_week. The seeded fixture has zero time logs.
+    assert body["wo_kpis"]["hours_this_week"] == 0

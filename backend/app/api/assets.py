@@ -238,6 +238,24 @@ def update_asset(asset_uid: str):
 def soft_delete_asset(asset_uid: str):
     asset = _get_asset(asset_uid)
     asset.deleted_at = datetime.now(UTC)
+
+    # Sweep work-order references so the WO UI doesn't silently lose
+    # its primary-asset display (the soft-delete listener filters the
+    # Asset out, but wo.asset_id still points at the row's PK). The FK
+    # ondelete=SET NULL only fires on hard delete. See WO-P0-4.
+    from app.models import WorkOrder, WorkOrderAsset
+
+    db.session.execute(
+        WorkOrder.__table__.update()
+        .where(WorkOrder.asset_id == asset.id)
+        .values(asset_id=None)
+    )
+    # And drop the M:N rows that reference the deleted asset — they'd
+    # render as orphan stops with no readable display name otherwise.
+    db.session.execute(
+        WorkOrderAsset.__table__.delete().where(WorkOrderAsset.asset_id == asset.id)
+    )
+
     db.session.commit()
     return "", 204
 

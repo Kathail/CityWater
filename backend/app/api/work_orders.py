@@ -52,6 +52,69 @@ work_orders_bp = Blueprint("work_orders", __name__, url_prefix="/api/v1/work-ord
 
 _ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024  # per-file
 
+# MIME allowlists per attachment kind. Anything outside these is rejected.
+# `kind=photo` is intentionally narrower than the wider image/* family —
+# we only want camera-roll formats, not SVG (XSS risk in browsers that
+# render it inline) or TIFF (no real use case for our flows).
+_PHOTO_MIME_ALLOW = frozenset({
+    "image/jpeg",
+    "image/png",
+    "image/heic",
+    "image/heif",
+    "image/webp",
+})
+_DOC_MIME_ALLOW = frozenset({
+    "application/pdf",
+    # Allow the same image types under "doc" (operators sometimes file
+    # screenshots or scans as documentation).
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/plain",
+    "text/csv",
+})
+_SKETCH_MIME_ALLOW = frozenset({
+    "image/jpeg",
+    "image/png",
+    "image/svg+xml",  # operator-drawn sketches (rendered as download, not inline)
+})
+
+_MIME_ALLOWLISTS: dict[str, frozenset[str]] = {
+    "photo": _PHOTO_MIME_ALLOW,
+    "doc": _DOC_MIME_ALLOW,
+    "sketch": _SKETCH_MIME_ALLOW,
+}
+
+# Magic-byte sniff for the most-confused MIME types. Maps the first few
+# bytes of a file to its actual MIME, so a `harmless.txt` that's really
+# an .exe is caught even though the client labelled it text/plain.
+_MAGIC_BYTES: tuple[tuple[bytes, str], ...] = (
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"%PDF-", "application/pdf"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+    (b"RIFF", "image/webp"),  # broad — webp wraps in RIFF; ok for our use
+    (b"\x00\x00\x00\x18ftypheic", "image/heic"),
+    (b"\x00\x00\x00\x18ftypheix", "image/heic"),
+    (b"\x00\x00\x00\x18ftypmif1", "image/heif"),
+    (b"\x00\x00\x00 ftypheic", "image/heic"),
+    (b"PK\x03\x04", "application/zip"),  # docx/xlsx are zip-wrapped
+)
+
+
+def _sniff_mime(blob: bytes) -> str | None:
+    """Best-effort magic-byte detection. Returns None for short blobs
+    or formats we don't have a signature for (caller should reject)."""
+    if len(blob) < 8:
+        return None
+    for prefix, mime in _MAGIC_BYTES:
+        if blob.startswith(prefix):
+            return mime
+    return None
+
 
 
 def _user_roles() -> set[str]:
@@ -653,6 +716,7 @@ def log_time(wo_number: str):
     hours = Decimal(str(round(delta, 2)))
     entry = WorkOrderTimeLog(
         work_order_id=wo.id,
+        tenant_id=wo.tenant_id,
         user_id=current_user.id,
         started_at=data.started_at,
         ended_at=data.ended_at,
@@ -705,10 +769,33 @@ def upload_attachment_endpoint(wo_number: str):
             code="too_large",
         )
 
+    # Reject by client-supplied MIME first, then sniff actual bytes
+    # to catch mislabelled uploads (`evil.html` posing as image/png).
+    # Both paths must agree before we accept the file. See WO-P0-5.
+    client_mime = (file.mimetype or "application/octet-stream").lower()
+    allow = _MIME_ALLOWLISTS[kind]
+    if client_mime not in allow:
+        raise ValidationError(
+            f"content_type {client_mime!r} not allowed for kind={kind!r} "
+            f"(allowed: {sorted(allow)})",
+            code="bad_content_type",
+        )
+    sniffed_mime = _sniff_mime(blob)
+    if sniffed_mime is not None and sniffed_mime != client_mime:
+        # Special-case zip-wrapped office docs: sniff returns
+        # application/zip, client says docx/xlsx — both are accurate
+        # at different layers. Allow the more specific MIME through.
+        if not (sniffed_mime == "application/zip" and client_mime in _DOC_MIME_ALLOW):
+            raise ValidationError(
+                f"file contents (sniffed as {sniffed_mime}) don't match "
+                f"declared content_type {client_mime}",
+                code="mime_mismatch",
+            )
+    content_type = client_mime
+
     coords = None
     taken_at = None
     upload_blob = blob
-    content_type = file.mimetype or "application/octet-stream"
     if kind == "photo" and content_type.startswith("image/"):
         from io import BytesIO
 

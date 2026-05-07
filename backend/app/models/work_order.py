@@ -188,7 +188,16 @@ class WorkOrderTask(Base, TimestampMixin, AuditableMixin):
     )
 
 
-class WorkOrderTimeLog(Base, TimestampMixin, AuditableMixin):
+class WorkOrderTimeLog(Base, TenantScopedMixin, TimestampMixin, AuditableMixin):
+    """Per-user labour log on a WO.
+
+    `tenant_id` was denormalised onto this table in migration
+    `0030_time_log_tenant_id` so the session-level tenant filter
+    listener applies directly. Without it, dashboard queries that
+    select straight from `work_order_time_log` summed hours across
+    every tenant in the database. See WO-P0-7.
+    """
+
     __tablename__ = "work_order_time_log"
     __table_args__ = (
         CheckConstraint("ended_at >= started_at", name="ck_work_order_time_log_order"),
