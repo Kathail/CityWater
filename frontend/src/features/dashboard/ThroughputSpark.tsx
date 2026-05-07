@@ -1,11 +1,7 @@
+import { DashCard } from "./DashCard";
 import type { DashboardResponse } from "./api";
 
-/**
- * 7-day completed-work sparkline. Sits in the dashboard sidebar
- * as a low-noise rhythm indicator — were we shipping work? Is
- * today an outlier?
- */
-
+/** 7-day completed-work sparkline. */
 export function ThroughputSpark({
   series,
   totalThisWeek,
@@ -15,15 +11,16 @@ export function ThroughputSpark({
 }) {
   const max = Math.max(1, ...series.map((d) => d.completed));
   return (
-    <section className="rounded-md border border-slate-800 bg-slate-900 p-4">
-      <header className="flex items-baseline justify-between">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-300">
-          7-day throughput
-        </h2>
-        <p className="text-lg font-semibold tabular-nums text-emerald-300">{totalThisWeek}</p>
-      </header>
+    <DashCard
+      title="7-day throughput"
+      trailing={
+        <span className="text-lg font-semibold tabular-nums text-emerald-300">
+          {totalThisWeek}
+        </span>
+      }
+    >
       <div
-        className="mt-3 flex h-12 items-end gap-1"
+        className="flex h-12 items-end gap-1"
         role="img"
         aria-label="Daily completed work for the past 7 days"
       >
@@ -45,6 +42,6 @@ export function ThroughputSpark({
           );
         })}
       </div>
-    </section>
+    </DashCard>
   );
 }

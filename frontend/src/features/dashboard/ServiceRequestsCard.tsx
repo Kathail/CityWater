@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { DashCard } from "./DashCard";
 import type { DashboardResponse } from "./api";
 
 /**
@@ -6,21 +7,15 @@ import type { DashboardResponse } from "./api";
  * tiles + a single, well-aligned priority distribution bar with
  * inline numeric breakdown.
  *
- * Cleanups vs the previous version:
- * - Status tiles now have explicit "view" affordance (border + hover)
- * - "Closed 7d" is visually separated from current-state counts so the
- *   window-vs-snapshot distinction is obvious
- * - Stacked priority bar uses semantic colours (red/amber/blue/slate)
- *   and renders the numeric counts INLINE on each segment when there's
- *   room — dropped to the legend below otherwise
- * - Legend uses one consistent dot+label+count pattern
+ * Iteration-2: wrapped in <DashCard> so chrome matches the rest of
+ * the dashboard panels.
  */
 
-const PRIORITY_BAR: Record<string, { bg: string; text: string }> = {
-  emergency: { bg: "bg-red-500", text: "text-red-50" },
-  high: { bg: "bg-amber-500", text: "text-amber-50" },
-  normal: { bg: "bg-blue-500", text: "text-blue-50" },
-  low: { bg: "bg-slate-500", text: "text-slate-50" },
+const PRIORITY_BAR: Record<string, { bg: string }> = {
+  emergency: { bg: "bg-red-500" },
+  high: { bg: "bg-amber-500" },
+  normal: { bg: "bg-blue-500" },
+  low: { bg: "bg-slate-500" },
 };
 
 const PRIORITY_ORDER = ["emergency", "high", "normal", "low"];
@@ -35,28 +30,13 @@ export function ServiceRequestsCard({
   slug: string;
 }) {
   const total = buckets.reduce((s, b) => s + b.count, 0);
-  // Sort buckets so the bar always reads emergency → low (left to right).
   const sortedBuckets = [...buckets].sort(
     (a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority),
   );
 
   return (
-    <section className="rounded-md border border-slate-800 bg-slate-900 p-4">
-      <header className="flex items-baseline justify-between">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-300">
-          Service requests
-        </h2>
-        <Link
-          to={`/${slug}/service-requests`}
-          className="text-xs text-blue-400 hover:text-blue-300 hover:underline"
-        >
-          See all →
-        </Link>
-      </header>
-
-      {/* Status row: 3 current-state + 1 window-state (Closed 7d), with
-          a visible separator so they don't read as comparable counts. */}
-      <div className="mt-3 grid grid-cols-4 gap-2">
+    <DashCard title="Service requests" to={`/${slug}/service-requests`} linkLabel="See all">
+      <div className="grid grid-cols-4 gap-2">
         <SrStatusTile
           to={`/${slug}/service-requests?status=new`}
           label="New"
@@ -84,11 +64,10 @@ export function ServiceRequestsCard({
         />
       </div>
 
-      {/* Priority distribution — single tidy bar + grid legend below. */}
       {total > 0 && (
         <div className="mt-4">
           <div className="flex items-baseline justify-between">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
               By priority · 30d
             </p>
             <p className="text-xs tabular-nums text-slate-500">{total} total</p>
@@ -124,7 +103,7 @@ export function ServiceRequestsCard({
           </ul>
         </div>
       )}
-    </section>
+    </DashCard>
   );
 }
 
@@ -142,7 +121,11 @@ function SrStatusTile({
   subtitle?: boolean;
 }) {
   const text =
-    tone === "amber" ? "text-amber-200" : tone === "info" ? "text-blue-200" : "text-slate-200";
+    tone === "amber"
+      ? "text-amber-200"
+      : tone === "info"
+        ? "text-blue-200"
+        : "text-slate-200";
   return (
     <Link
       to={to}

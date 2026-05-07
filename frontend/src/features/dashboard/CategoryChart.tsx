@@ -1,28 +1,24 @@
+import { DashCard } from "./DashCard";
 import type { DashboardResponse } from "./api";
 
-/**
- * Horizontal bar chart of WO categories over the last 30 days.
- * Cosmetic-only update from the previous version: tighter type,
- * percentage on hover via title, capitalised category labels.
- */
-
-export function CategoryChart({ buckets }: { buckets: DashboardResponse["wo_by_category_30d"] }) {
+/** Horizontal bar chart of WO categories over the last 30 days. */
+export function CategoryChart({
+  buckets,
+}: {
+  buckets: DashboardResponse["wo_by_category_30d"];
+}) {
   const total = buckets.reduce((sum, b) => sum + b.count, 0);
   const max = Math.max(1, ...buckets.map((b) => b.count));
 
   return (
-    <section className="rounded-md border border-slate-800 bg-slate-900 p-4">
-      <header className="flex items-baseline justify-between">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-300">
-          Work by category
-        </h2>
-        <p className="text-xs text-slate-500 tabular-nums">30d · {total}</p>
-      </header>
-
+    <DashCard
+      title="Work by category"
+      trailing={<span className="text-xs tabular-nums text-slate-500">30d · {total}</span>}
+    >
       {buckets.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">No work logged in the last 30 days.</p>
+        <p className="text-sm text-slate-500">No work logged in the last 30 days.</p>
       ) : (
-        <ul className="mt-3 space-y-1.5">
+        <ul className="space-y-1.5">
           {buckets.map((b) => {
             const pct = total === 0 ? 0 : (b.count / total) * 100;
             return (
@@ -49,6 +45,6 @@ export function CategoryChart({ buckets }: { buckets: DashboardResponse["wo_by_c
           })}
         </ul>
       )}
-    </section>
+    </DashCard>
   );
 }

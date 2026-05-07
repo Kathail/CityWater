@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { StatusPill, type PillTone } from "../../components/StatusPill";
+import { DashCard } from "./DashCard";
 import type { DashboardResponse } from "./api";
 
 /**
@@ -23,23 +24,25 @@ export function TodayQueue({
   slug: string;
 }) {
   return (
-    <section className="rounded-md border border-slate-800 bg-slate-900 p-4">
-      <header className="flex items-baseline justify-between">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-300">Your queue</h2>
-        <Link
-          to={`/${slug}/work-orders?assigned_to=me`}
-          className="text-xs text-blue-400 hover:text-blue-300 hover:underline"
-        >
-          See all →
-        </Link>
-      </header>
-
+    <DashCard
+      title="Your queue"
+      to={`/${slug}/work-orders?assigned_to=me`}
+      linkLabel="See all"
+      trailing={
+        items.length > 0 ? (
+          <span className="text-[11px] tabular-nums text-slate-500">
+            {items.length} {items.length === 1 ? "item" : "items"}
+          </span>
+        ) : null
+      }
+    >
       {items.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">No work assigned to you today.</p>
+        <p className="text-sm text-slate-500">No work assigned to you today.</p>
       ) : (
-        <ul className="mt-3 space-y-1.5">
+        <ul className="space-y-1.5">
           {items.map((q) => {
-            const pct = q.asset_total === 0 ? 0 : Math.round((q.asset_done / q.asset_total) * 100);
+            const pct =
+              q.asset_total === 0 ? 0 : Math.round((q.asset_done / q.asset_total) * 100);
             return (
               <li key={q.wo_number}>
                 <Link
@@ -83,6 +86,6 @@ export function TodayQueue({
           })}
         </ul>
       )}
-    </section>
+    </DashCard>
   );
 }
