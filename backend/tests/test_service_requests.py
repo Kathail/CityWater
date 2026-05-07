@@ -338,3 +338,57 @@ def test_priority_filter_in_list(admin_client, tenant):
     priorities = {i["priority"] for i in items}
     assert "emergency" in priorities
     assert "low" in priorities
+
+
+def test_dispatch_is_idempotent(admin_client):
+    """SR-P0-2: re-dispatching an already-dispatched SR must 409 with
+    `already_dispatched` rather than creating a second WO."""
+    create = admin_client.post("/api/v1/service-requests", json=_intake_payload())
+    sr_number = create.get_json()["service_request"]["sr_number"]
+    first = admin_client.post(
+        f"/api/v1/service-requests/{sr_number}/dispatch",
+        json={"work_order": {"title": "First dispatch"}},
+    )
+    assert first.status_code == 200
+    second = admin_client.post(
+        f"/api/v1/service-requests/{sr_number}/dispatch",
+        json={"work_order": {"title": "Second dispatch"}},
+    )
+    assert second.status_code == 409, second.get_json()
+    assert second.get_json()["error"]["code"] == "already_dispatched"
+
+
+def test_closed_sr_cannot_be_reopened_via_patch(admin_client, tenant):
+    """SR-P0-3: closed SRs cannot transition back to new/triaged
+    silently — the state machine requires an explicit reopen which
+    today is admin-gated and goes through PATCH with status only."""
+    sr = _insert_sr(tenant, status="closed")
+    db.session.commit()
+    # Admin reopen is allowed (via PATCH status-only) — but tech is not.
+    resp = admin_client.patch(
+        f"/api/v1/service-requests/{sr.sr_number}",
+        json={"status": "new"},
+    )
+    # Reopen is admin-only and currently allowed.
+    assert resp.status_code == 200, resp.get_json()
+    # And no field besides status can be touched while still closed.
+    sr.status = "closed"
+    db.session.commit()
+    resp = admin_client.patch(
+        f"/api/v1/service-requests/{sr.sr_number}",
+        json={"caller_name": "Hacked"},
+    )
+    assert resp.status_code == 409, resp.get_json()
+    assert resp.get_json()["error"]["code"] == "terminal_status"
+
+
+def test_invalid_status_transition_rejected(admin_client, tenant):
+    """SR-P0-3: dispatched → triaged via PATCH is not a legal transition."""
+    sr = _insert_sr(tenant, status="dispatched")
+    db.session.commit()
+    resp = admin_client.patch(
+        f"/api/v1/service-requests/{sr.sr_number}",
+        json={"status": "triaged"},
+    )
+    assert resp.status_code == 409, resp.get_json()
+    assert resp.get_json()["error"]["code"] == "invalid_transition"

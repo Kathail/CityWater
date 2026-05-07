@@ -47,21 +47,48 @@ def _can_triage() -> bool:
     return bool(_user_roles() & {"admin", "supervisor"})
 
 
+# SR-P0-3: state machine. `dispatched` is reachable only via the
+# dispatch endpoint, never via PATCH. Reopen flow takes a closed/
+# duplicate SR back to "new" or "triaged" — admin-only by the gate
+# in update_service_request.
+_SR_TRANSITIONS: dict[str, set[str]] = {
+    "new": {"triaged", "closed", "duplicate"},
+    "triaged": {"new", "closed", "duplicate"},
+    "dispatched": {"closed", "duplicate"},
+    "closed": {"new", "triaged"},  # admin-only reopen
+    "duplicate": {"new", "triaged"},  # admin-only reopen
+}
+
+
+def _is_valid_sr_transition(from_status: str, to_status: str) -> bool:
+    if from_status == to_status:
+        return True  # idempotent
+    return to_status in _SR_TRANSITIONS.get(from_status, set())
+
+
 def _payload(sr: ServiceRequest) -> dict[str, Any]:
+    # All cross-row lookups go through select() so the session-level
+    # tenant-filter listener applies. db.session.get() hits the identity
+    # map and bypasses the listener — same anti-pattern fixed across
+    # the rest of the codebase. SR-P0-1.
     wo_number = None
     if sr.work_order_id:
-        wo = db.session.get(WorkOrder, sr.work_order_id)
+        wo = db.session.scalar(select(WorkOrder).where(WorkOrder.id == sr.work_order_id))
         wo_number = wo.wo_number if wo else None
     dup_sr_number = None
     if sr.duplicate_of_id:
-        parent = db.session.get(ServiceRequest, sr.duplicate_of_id)
+        parent = db.session.scalar(
+            select(ServiceRequest).where(ServiceRequest.id == sr.duplicate_of_id)
+        )
         dup_sr_number = parent.sr_number if parent else None
     asset_uid = sr.asset_obj.asset_uid if sr.asset_obj else None
     task_definition_code: str | None = None
     if sr.task_definition_id is not None:
         from app.models import TaskDefinition
 
-        td = db.session.get(TaskDefinition, sr.task_definition_id)
+        td = db.session.scalar(
+            select(TaskDefinition).where(TaskDefinition.id == sr.task_definition_id)
+        )
         task_definition_code = td.code if td else None
     return {
         "id": sr.id,
@@ -105,7 +132,7 @@ def _sr_areas(*, location: Any, asset_id: int | None) -> list[dict[str, Any]]:
 def _list_item(sr: ServiceRequest) -> dict[str, Any]:
     wo_number = None
     if sr.work_order_id:
-        wo = db.session.get(WorkOrder, sr.work_order_id)
+        wo = db.session.scalar(select(WorkOrder).where(WorkOrder.id == sr.work_order_id))
         wo_number = wo.wo_number if wo else None
     return {
         "sr_number": sr.sr_number,
@@ -311,6 +338,37 @@ def update_service_request(sr_number: str):
 
     is_supervisor = _can_triage()
 
+    # SR-P0-4: closed/duplicate SRs are terminal — no edits except an
+    # explicit admin reopen (which today goes through the same PATCH
+    # with status set to "new" or "triaged"). Block every other field
+    # so a tech/intake user can't quietly mutate caller info or task_data
+    # on a row that's been closed out.
+    if sr.status in {"closed", "duplicate"}:
+        # Only admin can touch closed/duplicate, and even then only via
+        # status to reopen.
+        if not (_user_roles() & {"admin"}):
+            raise ConflictError(
+                f"service request is {sr.status} and cannot be edited",
+                code="terminal_status",
+            )
+        # Even admin: refuse anything except a status flip back to a
+        # working state.
+        non_status_changes = [
+            f
+            for f in ("category", "domain", "priority", "caller_name",
+                      "caller_phone", "caller_email", "reported_address",
+                      "address_override", "description", "closure_notes",
+                      "closure_reason", "attrs", "task_data",
+                      "duplicate_of_sr_number")
+            if getattr(data, f, None) is not None
+        ]
+        if non_status_changes:
+            raise ConflictError(
+                "closed/duplicate SR can only be reopened (status change), "
+                f"not edit: {', '.join(non_status_changes)}",
+                code="terminal_status",
+            )
+
     # Tech/intake can update caller info or description on their own intakes
     # but cannot retriage (status, priority, category/domain) or close.
     if not is_supervisor:
@@ -331,6 +389,14 @@ def update_service_request(sr_number: str):
             raise ValidationError(
                 "status must be new, triaged, closed, or duplicate",
                 code="bad_status",
+            )
+        # SR-P0-3: enforce a state machine. Without this any status can
+        # transition to any other status (closed→new, dispatched→triaged,
+        # etc.) — auditable but operationally wrong.
+        if not _is_valid_sr_transition(sr.status, data.status):
+            raise ConflictError(
+                f"cannot transition service request from {sr.status} to {data.status}",
+                code="invalid_transition",
             )
         sr.status = data.status
         if data.status == "closed" and sr.closed_at is None:
@@ -399,6 +465,15 @@ def dispatch_service_request(sr_number: str):
         raise ConflictError(
             f"cannot dispatch a {sr.status} service request",
             code="bad_status_for_dispatch",
+        )
+    # Idempotency guard. Without it, a double-clicked Dispatch button
+    # creates a second WO, sr.work_order_id flips to the new id, and
+    # the original WO is orphaned (still has service_request_id back-
+    # reference but the SR no longer points to it). SR-P0-2.
+    if sr.status == "dispatched":
+        raise ConflictError(
+            f"service request already dispatched (work order {sr.work_order_id})",
+            code="already_dispatched",
         )
 
     wo_payload = data.work_order

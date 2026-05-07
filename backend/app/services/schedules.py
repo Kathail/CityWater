@@ -104,15 +104,33 @@ def _instantiate_work_order(schedule: Schedule, now: datetime) -> WorkOrder:
 
 def _instantiate_inspection(schedule: Schedule, now: datetime) -> Inspection:
     spec = schedule.spec or {}
+    kind = spec.get("kind") or "manhole"
+    # Validate the per-kind data shape with the same logic the API uses.
+    # Without this a schedule with junk in spec.data persists invalid
+    # rows that fail later when a user opens or edits them. INS-P1-2.
+    from app.api.inspections import _normalize_data
+
+    raw_data = spec.get("data", {})
+    try:
+        validated_data = _normalize_data(kind, raw_data) if raw_data else {}
+    except Exception as exc:
+        # Fail loud: the schedule's spec is broken and every tick will
+        # re-fail. Caller catches and rolls back this schedule so other
+        # tenants' schedules continue.
+        raise ValidationError(
+            f"schedule {schedule.id} spec.data fails validation for kind={kind!r}: {exc}",
+            code="bad_schedule_spec",
+        ) from exc
+
     n = next_inspection_number(tenant_id=schedule.tenant_id)
     ins = Inspection(
         tenant_id=schedule.tenant_id,
         inspection_number=n,
-        kind=spec.get("kind") or "manhole",
+        kind=kind,
         asset_id=schedule.asset_id,
         performed_at=now,
         performed_by=spec.get("performed_by"),
-        data=spec.get("data", {}),
+        data=validated_data,
         notes=spec.get("notes"),
         schedule_id=schedule.id,
     )

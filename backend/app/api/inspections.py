@@ -30,6 +30,14 @@ from app.services.permissions import require_roles
 
 inspections_bp = Blueprint("inspections", __name__, url_prefix="/api/v1/inspections")
 
+# Per-route caps for PACP/WinCAN imports (INS-P1-1). Global Flask
+# MAX_CONTENT_LENGTH is 25 MB; this tightens it for the import endpoint
+# specifically because legitimate PACP exports rarely exceed 5 MB and
+# observation-count caps protect against deep-nesting / mass-observation
+# memory exhaustion.
+_PACP_MAX_BYTES = 5 * 1024 * 1024  # 5 MiB
+_PACP_MAX_OBSERVATIONS = 2_000
+
 # Maps inspection kind → set of asset class codes that may host this inspection.
 KIND_ASSET_COMPATIBILITY: dict[str, set[str]] = {
     "hydrant_flow": {"WAT_HYD"},
@@ -100,19 +108,20 @@ def _resolve_wo_id(wo_number: str | None) -> int | None:
 
 
 def _payload(ins: Inspection) -> dict[str, Any]:
-    asset_uid = None
-    if ins.asset_id:
-        asset = db.session.get(Asset, ins.asset_id)
-        asset_uid = asset.asset_uid if asset else None
-    wo_number = None
-    if ins.work_order_id:
-        wo = db.session.get(WorkOrder, ins.work_order_id)
-        wo_number = wo.wo_number if wo else None
+    # Eager-loaded relationships (asset_obj, work_order_obj — both
+    # lazy="joined") give us asset_uid and wo_number without an extra
+    # round-trip. Earlier code did `db.session.get(Asset, ...)` per
+    # inspection in the list endpoint — N+1 plus listener-bypass.
+    # INS-P0-2.
+    asset_uid = ins.asset_obj.asset_uid if ins.asset_obj else None
+    wo_number = ins.work_order_obj.wo_number if ins.work_order_obj else None
     task_definition_code: str | None = None
     if ins.task_definition_id is not None:
         from app.models import TaskDefinition
 
-        td = db.session.get(TaskDefinition, ins.task_definition_id)
+        td = db.session.scalar(
+            select(TaskDefinition).where(TaskDefinition.id == ins.task_definition_id)
+        )
         task_definition_code = td.code if td else None
     return {
         "id": ins.id,
@@ -141,10 +150,9 @@ def _get_inspection(n: str) -> Inspection:
     if not _is_supervisor_or_admin() and "readonly" not in _user_roles():
         # Tech sees only inspections they performed OR linked to a WO they're assigned to
         own = ins.performed_by == current_user.id
-        wo_assigned = False
-        if ins.work_order_id:
-            wo = db.session.get(WorkOrder, ins.work_order_id)
-            wo_assigned = bool(wo and wo.assigned_to == current_user.id)
+        wo_assigned = bool(
+            ins.work_order_obj and ins.work_order_obj.assigned_to == current_user.id
+        )
         if not (own or wo_assigned):
             raise NotFoundError(f"inspection {n} not found")
     return ins
@@ -285,7 +293,10 @@ def update_inspection(inspection_number: str):
 
 @inspections_bp.get("/export")
 @login_required
+@require_roles("admin", "supervisor", "tech", "readonly")
 def export_inspections():
+    # `intake` is excluded — they're an intake/dispatch role with no
+    # operational stake in inspection history. INS-P0-1.
     fmt = request.args.get("format", "csv")
     if fmt != "csv":
         raise ValidationError("only format=csv is supported in S6", code="bad_format")
@@ -346,9 +357,8 @@ def _stream_csv(stmt: Select, kind: str | None) -> Generator[str, None, None]:
             "pass": "" if ins.pass_ is None else str(ins.pass_).lower(),
             "notes": ins.notes or "",
         }
-        if ins.asset_id:
-            asset = db.session.get(Asset, ins.asset_id)
-            row["asset_uid"] = asset.asset_uid if asset else ""
+        if ins.asset_obj:
+            row["asset_uid"] = ins.asset_obj.asset_uid
         if extra:
             for key in extra:
                 v = (ins.data or {}).get(key)
@@ -374,7 +384,29 @@ def import_pacp():
     if not file:
         raise ValidationError("missing 'file' field", code="missing_file")
 
-    parsed = parse_wincan(file.stream, content_type=file.mimetype)
+    # Bound the import per-route. Global Flask MAX_CONTENT_LENGTH is
+    # 25 MB but PACP/WinCAN exports rarely exceed 5 MB legitimately —
+    # anything bigger is suspicious (deep XML nesting, mass-observation
+    # injection). Read once, count bytes, then hand to the parser.
+    # INS-P1-1.
+    raw = file.stream.read()
+    if len(raw) > _PACP_MAX_BYTES:
+        raise ValidationError(
+            f"PACP/WinCAN file exceeds {_PACP_MAX_BYTES // (1024 * 1024)} MB cap",
+            code="too_large",
+        )
+    from io import BytesIO
+
+    parsed = parse_wincan(BytesIO(raw), content_type=file.mimetype)
+    # Cap observation count after parse so the cap also applies to
+    # JSON imports that don't go through the XML parser.
+    observations = (parsed or {}).get("observations") or []
+    if len(observations) > _PACP_MAX_OBSERVATIONS:
+        raise ValidationError(
+            f"PACP/WinCAN payload has {len(observations)} observations; "
+            f"cap is {_PACP_MAX_OBSERVATIONS} per inspection",
+            code="too_many_observations",
+        )
     normalized_data = _normalize_data("cctv", parsed)
 
     asset_id = _resolve_asset_id(request.form.get("asset_uid"), "cctv")

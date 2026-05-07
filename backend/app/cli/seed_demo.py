@@ -535,6 +535,7 @@ def _seed() -> None:
     db.session.add(
         WorkOrderTimeLog(
             work_order_id=wo4.id,
+            tenant_id=tenant.id,
             user_id=tech.id,
             started_at=datetime.now(UTC) - timedelta(days=3, hours=2),
             ended_at=datetime.now(UTC) - timedelta(days=3),
