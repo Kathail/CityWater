@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { apiJson } from "../../lib/apiClient";
+import { useMapOverlays } from "./hooks";
 
 /**
  * Top-of-map search bar.
@@ -37,70 +38,37 @@ interface AssetListResp {
   items: AssetItem[];
 }
 
-interface MapOverlaysResp {
-  open_wos: GeoJSON.FeatureCollection<
-    GeoJSON.Point,
-    {
-      kind: "work_order";
-      wo_number: string;
-      title: string;
-      priority: string;
-      status: string;
-    }
-  >;
-  active_srs: GeoJSON.FeatureCollection<
-    GeoJSON.Point,
-    {
-      kind: "service_request";
-      sr_number: string;
-      category: string;
-      priority: string;
-      status: string;
-      reported_address: string | null;
-    }
-  >;
-}
-
 export function MapSearchBar({ onPick }: { onPick: (hit: MapSearchHit) => void }) {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<MapSearchHit[]>([]);
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
-  const overlaysRef = useRef<MapOverlaysResp | null>(null);
 
-  // Pull overlays once for in-memory search of WOs/SRs (small set;
-  // bigger tenants can switch to a server-side endpoint later).
-  useEffect(() => {
-    apiJson<MapOverlaysResp>("/api/v1/map/overlays")
-      .then((d) => (overlaysRef.current = d))
-      .catch(() => {
-        /* swallow — search will degrade to assets-only */
-      });
-  }, []);
+  // Reuse the same overlay query as the LayerPanel so we don't double-
+  // fetch and so freshly-created WOs/SRs (which invalidate the
+  // ["map-overlays"] key) appear in search results without a refresh.
+  const overlays = useMapOverlays();
 
-  // Debounced asset lookup + WO/SR filter.
+  // Debounced asset lookup + WO/SR filter against the overlay cache.
   useEffect(() => {
     if (q.trim().length < 2) {
       setHits([]);
       return;
     }
     let cancelled = false;
-    const timer = setTimeout(async () => {
-      const trimmed = q.trim();
-      const promises: [Promise<MapSearchHit[]>, MapSearchHit[], MapSearchHit[]] = [
-        apiJson<AssetListResp>(`/api/v1/assets?q=${encodeURIComponent(trimmed)}&page_size=8`)
-          .then((d) =>
-            d.items.map((a) => assetToHit(a)).filter((h): h is MapSearchHit => h !== null),
-          )
-          .catch(() => [] as MapSearchHit[]),
-        searchOverlay(overlaysRef.current?.open_wos.features ?? [], trimmed, "wo"),
-        searchOverlay(overlaysRef.current?.active_srs.features ?? [], trimmed, "sr"),
-      ];
-      const [assets, wos, srs] = await Promise.all([
-        promises[0],
-        Promise.resolve(promises[1]),
-        Promise.resolve(promises[2]),
-      ]);
+    const trimmed = q.trim();
+    const timer = window.setTimeout(async () => {
+      const wos = searchOverlay(overlays.data?.open_wos.features ?? [], trimmed, "wo");
+      const srs = searchOverlay(overlays.data?.active_srs.features ?? [], trimmed, "sr");
+      let assets: MapSearchHit[] = [];
+      try {
+        const d = await apiJson<AssetListResp>(
+          `/api/v1/assets?q=${encodeURIComponent(trimmed)}&page_size=8`,
+        );
+        assets = d.items.map((a) => assetToHit(a)).filter((h): h is MapSearchHit => h !== null);
+      } catch {
+        // Network error — keep WO/SR hits, swallow the assets miss.
+      }
       if (cancelled) return;
       const merged = [...wos, ...srs, ...assets].slice(0, 10);
       setHits(merged);
@@ -109,9 +77,9 @@ export function MapSearchBar({ onPick }: { onPick: (hit: MapSearchHit) => void }
     }, 250);
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      window.clearTimeout(timer);
     };
-  }, [q]);
+  }, [q, overlays.data]);
 
   function pick(hit: MapSearchHit) {
     onPick(hit);
@@ -249,14 +217,18 @@ function representativePoint(geom: GeoJSON.Geometry | null | undefined): [number
 }
 
 function searchOverlay(
-  features: GeoJSON.Feature<GeoJSON.Point, Record<string, unknown>>[],
+  features: readonly GeoJSON.Feature<GeoJSON.Point>[],
   query: string,
   kind: "wo" | "sr",
 ): MapSearchHit[] {
   const q = query.toLowerCase();
   const hits: MapSearchHit[] = [];
   for (const f of features) {
-    const props = f.properties ?? {};
+    // The overlay endpoint emits typed properties (WoFeatureProps /
+    // SrFeatureProps), but searchOverlay is generic over both — index
+    // through Record<string, unknown> at the use site so TS doesn't
+    // complain about the union-typed fields.
+    const props = (f.properties ?? {}) as Record<string, unknown>;
     const num = String(kind === "wo" ? props.wo_number : props.sr_number);
     const label =
       kind === "wo"

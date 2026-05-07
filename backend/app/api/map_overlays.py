@@ -12,7 +12,8 @@ from typing import Any
 
 from flask import Blueprint, jsonify
 from flask_login import login_required
-from sqlalchemy import case, func, select
+from sqlalchemy import case, cast, func, select
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.extensions import db
 from app.models import Asset, ServiceArea, ServiceRequest, WorkOrder
@@ -37,8 +38,10 @@ def get_overlays():
 
 
 def _service_area_features() -> dict[str, Any]:
-    import json
-
+    # Cast ST_AsGeoJSON's text result to JSONB so psycopg returns a
+    # parsed dict and we skip a per-row json.loads in Python. For
+    # tenants with thousands of overlay features this is the dominant
+    # cost on the endpoint. MAP-P1-9.
     rows = db.session.execute(
         select(
             ServiceArea.id,
@@ -46,7 +49,7 @@ def _service_area_features() -> dict[str, Any]:
             ServiceArea.name,
             ServiceArea.kind,
             ServiceArea.color,
-            func.ST_AsGeoJSON(ServiceArea.geom).label("geom_json"),
+            cast(func.ST_AsGeoJSON(ServiceArea.geom), JSONB).label("geom_json"),
         ).where(ServiceArea.deleted_at.is_(None))
     ).all()
 
@@ -57,7 +60,7 @@ def _service_area_features() -> dict[str, Any]:
         features.append(
             {
                 "type": "Feature",
-                "geometry": json.loads(r.geom_json),
+                "geometry": r.geom_json,
                 "properties": {
                     "kind": "service_area",
                     "id": r.id,
@@ -85,7 +88,7 @@ def _wo_features() -> dict[str, Any]:
             WorkOrder.scheduled_for,
             WorkOrder.due_by,
             Asset.asset_uid,
-            func.coalesce(wo_pt, asset_pt).label("geom_json"),
+            cast(func.coalesce(wo_pt, asset_pt), JSONB).label("geom_json"),
         )
         .outerjoin(Asset, Asset.id == WorkOrder.asset_id)
         .where(WorkOrder.status.in_(WO_ACTIVE_STATUSES))
@@ -100,13 +103,10 @@ def _wo_features() -> dict[str, Any]:
     for r in rows:
         if not r.geom_json:
             continue
-        import json
-
-        geom = json.loads(r.geom_json)
         features.append(
             {
                 "type": "Feature",
-                "geometry": geom,
+                "geometry": r.geom_json,
                 "properties": {
                     "kind": "work_order",
                     "wo_number": r.wo_number,
@@ -136,24 +136,21 @@ def _sr_features() -> dict[str, Any]:
             ServiceRequest.reported_at,
             ServiceRequest.reported_address,
             Asset.asset_uid,
-            func.coalesce(sr_pt, asset_pt).label("geom_json"),
+            cast(func.coalesce(sr_pt, asset_pt), JSONB).label("geom_json"),
         )
         .outerjoin(Asset, Asset.id == ServiceRequest.asset_id)
         .where(ServiceRequest.status.in_(SR_ACTIVE_STATUSES))
         .where(case((ServiceRequest.location.is_not(None), True), else_=Asset.id.is_not(None)))
     ).all()
 
-    import json
-
     features: list[dict[str, Any]] = []
     for r in rows:
         if not r.geom_json:
             continue
-        geom = json.loads(r.geom_json)
         features.append(
             {
                 "type": "Feature",
-                "geometry": geom,
+                "geometry": r.geom_json,
                 "properties": {
                     "kind": "service_request",
                     "sr_number": r.sr_number,
