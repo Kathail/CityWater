@@ -21,7 +21,11 @@ import {
   type WorkOrderListParams,
 } from "./api";
 import { useWorkOrders } from "./hooks";
-import { WO_PRIORITY_TONE as PRIORITY_TONE, WO_STATUS_TONE as STATUS_TONE } from "./tones";
+import {
+  canTransition,
+  WO_PRIORITY_TONE as PRIORITY_TONE,
+  WO_STATUS_TONE as STATUS_TONE,
+} from "./tones";
 
 const STATUSES: WoStatus[] = [
   "draft",
@@ -331,7 +335,22 @@ export function WorkOrderListPage() {
                             </RowActions.Link>
                           )}
                           <RowActions.Separator />
-                          {w.status === "open" && (
+                          {/* Each row action is gated by the shared
+                              transition table so the menu never offers
+                              a move the backend would 409 (WO-P1-1).
+                              Open → assigned (one click), assigned →
+                              in_progress, in_progress → completed,
+                              every active state → on_hold. */}
+                          {canTransition(w.status, "assigned") && (
+                            <RowActions.Action
+                              onClick={() =>
+                                transition.mutate({ wo: w.wo_number, to: "assigned" })
+                              }
+                            >
+                              Assign (advance)
+                            </RowActions.Action>
+                          )}
+                          {canTransition(w.status, "in_progress") && (
                             <RowActions.Action
                               onClick={() =>
                                 transition.mutate({ wo: w.wo_number, to: "in_progress" })
@@ -340,7 +359,7 @@ export function WorkOrderListPage() {
                               Mark in progress
                             </RowActions.Action>
                           )}
-                          {(w.status === "in_progress" || w.status === "assigned") && (
+                          {canTransition(w.status, "completed") && (
                             <RowActions.Action
                               onClick={() =>
                                 transition.mutate({ wo: w.wo_number, to: "completed" })
@@ -349,7 +368,7 @@ export function WorkOrderListPage() {
                               Mark complete
                             </RowActions.Action>
                           )}
-                          {!["completed", "cancelled"].includes(w.status) && (
+                          {canTransition(w.status, "on_hold") && (
                             <RowActions.Action
                               onClick={() => transition.mutate({ wo: w.wo_number, to: "on_hold" })}
                             >

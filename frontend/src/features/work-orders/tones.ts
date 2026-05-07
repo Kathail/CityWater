@@ -25,3 +25,23 @@ export const WO_PRIORITY_TONE: Record<WoPriority, PillTone> = {
   high: "warning",
   emergency: "danger",
 };
+
+/**
+ * Allowed status transitions, byte-equivalent to backend
+ * `app/services/wo_state.py:TRANSITIONS`. Both the detail page's
+ * "Move to…" buttons and the list page's row-action quick actions
+ * use this so we never offer a transition the API would reject.
+ */
+export const WO_TRANSITIONS: Record<WoStatus, WoStatus[]> = {
+  draft: ["open", "cancelled"],
+  open: ["assigned", "on_hold", "cancelled"],
+  assigned: ["in_progress", "on_hold", "cancelled"],
+  in_progress: ["completed", "on_hold"],
+  on_hold: ["open", "assigned", "in_progress", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
+
+export function canTransition(from: WoStatus, to: WoStatus): boolean {
+  return WO_TRANSITIONS[from]?.includes(to) ?? false;
+}

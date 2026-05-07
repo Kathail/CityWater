@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Alert } from "../../components/Alert";
@@ -50,6 +50,17 @@ export function ServiceRequestDetailPage() {
   // Tracks "user edited but server hasn't acknowledged yet" — covers both
   // the 600 ms debounce window and the in-flight PATCH.
   const [pendingSave, setPendingSave] = useState(false);
+
+  // Clear any pending debounce on unmount so a fast navigation doesn't
+  // setState on a freed component (WO-P1-7).
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+    };
+  }, []);
 
   if (query.isLoading) return <LoadingState />;
   if (query.isError) return <ErrorState message="Failed to load." retry={() => query.refetch()} />;

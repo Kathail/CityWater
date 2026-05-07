@@ -195,15 +195,18 @@ def _list_wo_assets(wo_id: int) -> list[dict[str, Any]]:
 
 
 def _wo_payload(wo: WorkOrder) -> dict[str, Any]:
-    asset_uid = None
-    if wo.asset_id:
-        asset = db.session.get(Asset, wo.asset_id)
-        asset_uid = asset.asset_uid if asset else None
+    # WorkOrder.asset_obj is lazy="joined" — the parent SELECT already
+    # eager-loaded the row, so reading the relationship is free. The
+    # earlier `db.session.get(Asset, wo.asset_id)` was an extra
+    # round-trip per call (WO-P1-12).
+    asset_uid = wo.asset_obj.asset_uid if wo.asset_obj else None
     task_definition_code: str | None = None
     if wo.task_definition_id is not None:
         from app.models import TaskDefinition
 
-        td = db.session.get(TaskDefinition, wo.task_definition_id)
+        td = db.session.scalar(
+            select(TaskDefinition).where(TaskDefinition.id == wo.task_definition_id)
+        )
         task_definition_code = td.code if td else None
     payload = {
         "id": wo.id,
@@ -243,10 +246,9 @@ def _wo_payload(wo: WorkOrder) -> dict[str, Any]:
 
 
 def _list_item(wo: WorkOrder) -> dict[str, Any]:
-    asset_uid = None
-    if wo.asset_id:
-        asset = db.session.get(Asset, wo.asset_id)
-        asset_uid = asset.asset_uid if asset else None
+    # asset_obj is eager-loaded (lazy="joined") so reading it costs zero
+    # extra round-trips even on a 50-row page (WO-P1-12).
+    asset_uid = wo.asset_obj.asset_uid if wo.asset_obj else None
     return {
         "wo_number": wo.wo_number,
         "type": wo.type,
@@ -295,7 +297,25 @@ def list_work_orders():
 
     asset_uid = request.args.get("asset_uid")
     if asset_uid:
-        stmt = stmt.join(Asset, WorkOrder.asset_id == Asset.id).where(Asset.asset_uid == asset_uid)
+        # Match WOs where the asset is the primary (wo.asset_id) OR a
+        # stop on a route-mode WO (work_order_asset row). Previously
+        # only the primary path was checked, so the asset detail page's
+        # "View work orders" link missed every route-WO touching the
+        # asset. WO-P1-2.
+        target = db.session.scalar(select(Asset).where(Asset.asset_uid == asset_uid))
+        if target is None:
+            # Unknown asset_uid → no rows. Avoid issuing the IN(...)
+            # against an empty set; let SA short-circuit.
+            stmt = stmt.where(False)
+        else:
+            stmt = stmt.where(
+                (WorkOrder.asset_id == target.id)
+                | WorkOrder.id.in_(
+                    select(WorkOrderAsset.work_order_id).where(
+                        WorkOrderAsset.asset_id == target.id
+                    )
+                )
+            )
 
     q = (request.args.get("q") or "").strip()
     if q:

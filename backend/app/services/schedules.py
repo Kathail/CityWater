@@ -23,7 +23,7 @@ from sqlalchemy import select
 
 from app.errors import ValidationError
 from app.extensions import db
-from app.models import Inspection, Schedule, WorkOrder
+from app.models import Inspection, Schedule, WorkOrder, WorkOrderTask, WoTemplate
 from app.services.inspection_number import next_inspection_number
 from app.services.wo_number import next_wo_number
 
@@ -49,27 +49,56 @@ def next_occurrence_after(rule: str, after: datetime) -> datetime | None:
 
 def _instantiate_work_order(schedule: Schedule, now: datetime) -> WorkOrder:
     spec = schedule.spec or {}
+
+    # If the schedule references a WO template, pull category/priority
+    # defaults from it and copy over the task checklist. Without this
+    # every recurring flushing WO came out with zero sub-tasks even
+    # though the template had a five-step checklist. WO-P1-3.
+    template = None
+    template_id = spec.get("template_id")
+    if template_id is not None:
+        template = db.session.scalar(
+            select(WoTemplate).where(WoTemplate.id == template_id)
+        )
+
     wo_number = next_wo_number(tenant_id=schedule.tenant_id)
     wo = WorkOrder(
         tenant_id=schedule.tenant_id,
         wo_number=wo_number,
         type=spec.get("type", "planned"),
-        category=spec.get("category", "other"),
-        priority=spec.get("priority", "normal"),
+        category=spec.get("category") or (template.category if template else "other"),
+        priority=spec.get("priority")
+        or (template.default_priority if template else "normal"),
         status="open",
         title=spec.get("title") or schedule.name,
-        description=spec.get("description"),
+        description=spec.get("description") or (template.instructions if template else None),
         asset_id=schedule.asset_id,
         scheduled_for=now,
         due_by=spec.get("due_by"),
         assigned_to=spec.get("assigned_to"),
         crew_id=spec.get("crew_id"),
         attrs=spec.get("attrs", {}),
+        template_id=template.id if template else None,
         schedule_id=schedule.id,
         reported_by=schedule.created_by,
     )
     db.session.add(wo)
     db.session.flush()
+
+    if template and template.task_template:
+        for idx, task_def in enumerate(template.task_template):
+            title = (task_def or {}).get("title")
+            if not title:
+                continue
+            db.session.add(
+                WorkOrderTask(
+                    work_order_id=wo.id,
+                    sequence=task_def.get("sequence", idx),
+                    title=title,
+                    description=task_def.get("description"),
+                )
+            )
+
     return wo
 
 

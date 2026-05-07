@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { Alert } from "../../components/Alert";
@@ -27,17 +27,7 @@ import {
   type WorkOrderDetail,
 } from "./api";
 import { useWorkOrder } from "./hooks";
-import { WO_STATUS_TONE } from "./tones";
-
-const TRANSITIONS: Record<WoStatus, WoStatus[]> = {
-  draft: ["open", "cancelled"],
-  open: ["assigned", "on_hold", "cancelled"],
-  assigned: ["in_progress", "on_hold", "cancelled"],
-  in_progress: ["completed", "on_hold"],
-  on_hold: ["open", "assigned", "in_progress", "cancelled"],
-  completed: [],
-  cancelled: [],
-};
+import { WO_STATUS_TONE, WO_TRANSITIONS as TRANSITIONS } from "./tones";
 
 export function WorkOrderDetailPage() {
   const { slug, wo: woNumber } = useParams<{ slug: string; wo: string }>();
@@ -181,6 +171,19 @@ function TaskSection({
   // window prompts before discarding.
   const [pendingSave, setPendingSave] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear the debounce timer on unmount so a fast-fingered user can't
+  // navigate away mid-debounce and still trigger a setState on a
+  // freed component (WO-P1-7). UnsavedChangesGuard prompts on route
+  // change, but tab close doesn't go through it.
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+    };
+  }, []);
 
   const save = useMutation({
     mutationFn: (next: TaskData) => updateWorkOrder(wo.wo_number, { task_data: next }),
