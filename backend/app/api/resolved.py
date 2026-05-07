@@ -40,6 +40,7 @@ def _can_view_wo(wo: WorkOrder) -> bool:
         return True
     return wo.assigned_to == current_user.id
 
+
 resolved_bp = Blueprint("resolved", __name__, url_prefix="/api/v1")
 
 
@@ -129,9 +130,7 @@ def resolved_service_request(sr_number: str):
 @resolved_bp.get("/inspections/<string:inspection_number>/resolved")
 @login_required
 def resolved_inspection(inspection_number: str):
-    insp = db.session.scalar(
-        select(Inspection).where(Inspection.inspection_number == inspection_number)
-    )
+    insp = db.session.scalar(select(Inspection).where(Inspection.inspection_number == inspection_number))
     if not insp:
         raise NotFoundError(f"inspection {inspection_number} not found")
     loc = resolve_inspection(insp)

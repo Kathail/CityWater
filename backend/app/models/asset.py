@@ -72,20 +72,14 @@ class Asset(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, AuditableM
     warranty_until: Mapped[date | None] = mapped_column(Date, nullable=True)
     condition: Mapped[int | None] = mapped_column(Integer, nullable=True)
     criticality: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="active", server_default="active"
-    )
-    attrs: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active", server_default="active")
+    attrs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Cached reverse-geocoded address. Refreshed by the geocode-tick worker
     # whenever the trigger enqueues a job (asset insert / geom update).
     # Reads through this column rather than re-geocoding on the hot path.
     address_cached: Mapped[str | None] = mapped_column(Text, nullable=True)
-    address_cached_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    address_cached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     asset_class: Mapped[AssetClass] = relationship("AssetClass", lazy="joined")

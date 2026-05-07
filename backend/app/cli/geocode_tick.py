@@ -20,6 +20,5 @@ def register(app: Flask) -> None:
     def geocode_tick(batch: int) -> None:
         summary = tick(batch_size=batch)
         click.echo(
-            f"[geocode-tick] processed={summary['processed']} "
-            f"geocoded={summary['geocoded']} failed={summary['failed']}"
+            f"[geocode-tick] processed={summary['processed']} geocoded={summary['geocoded']} failed={summary['failed']}"
         )

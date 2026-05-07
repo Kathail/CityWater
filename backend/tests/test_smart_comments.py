@@ -3,7 +3,6 @@ from __future__ import annotations
 from app.seeds.tasks.wat_discoloured import TASK_WAT_DISCOLOURED
 from app.services.tasks.smart_comments import _interpolate, render_suggestions
 
-
 # ---------- interpolation ----------
 
 

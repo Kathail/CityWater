@@ -22,9 +22,7 @@ def list_tile_layers():
     vector source `/api/v1/tiles/assets/{z}/{x}/{y}.pbf` and use a class_code
     filter, so a single tile fetch populates every layer."""
     classes = db.session.scalars(
-        select(AssetClass)
-        .order_by(AssetClass.domain, AssetClass.code)
-        .execution_options(skip_tenant_filter=True)
+        select(AssetClass).order_by(AssetClass.domain, AssetClass.code).execution_options(skip_tenant_filter=True)
     ).all()
     return jsonify(
         [

@@ -8,8 +8,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.errors import ConflictError, NotFoundError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import ConflictError, NotFoundError, ValidationError
 from app.extensions import db
 from app.models import Asset, Schedule
 from app.schemas.schedule import (
@@ -24,7 +24,6 @@ from app.services.permissions import require_roles
 from app.services.schedules import next_occurrence_after, parse_rrule, tick
 
 schedules_bp = Blueprint("schedules", __name__, url_prefix="/api/v1/schedules")
-
 
 
 def _resolve_asset(uid: str | None) -> int | None:
@@ -62,13 +61,9 @@ def _payload(s: Schedule) -> dict[str, Any]:
 @schedules_bp.get("")
 @login_required
 def list_schedules():
-    rows = db.session.scalars(
-        select(Schedule).order_by(Schedule.next_run_at.asc().nulls_last(), Schedule.name)
-    ).all()
+    rows = db.session.scalars(select(Schedule).order_by(Schedule.next_run_at.asc().nulls_last(), Schedule.name)).all()
     return jsonify(
-        ScheduleListResponse(
-            items=[ScheduleRead.model_validate(_payload(r)) for r in rows]
-        ).model_dump(mode="json")
+        ScheduleListResponse(items=[ScheduleRead.model_validate(_payload(r)) for r in rows]).model_dump(mode="json")
     )
 
 

@@ -17,9 +17,7 @@ class Crew(Base, TenantScopedMixin, TimestampMixin, AuditableMixin):
         ForeignKey("user.id", ondelete="SET NULL"),
         nullable=True,
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default="true"
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
 
 
 class CrewMember(Base):

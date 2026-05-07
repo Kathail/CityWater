@@ -16,9 +16,9 @@ from app.api.assets import assets_bp
 from app.api.auth import auth_bp
 from app.api.comments import comments_bp
 from app.api.crews import crews_bp
+from app.api.dashboard import dashboard_bp
 from app.api.health import health_bp
 from app.api.history import history_bp
-from app.api.dashboard import dashboard_bp
 from app.api.inspections import inspections_bp
 from app.api.invitations import invitations_bp
 from app.api.links import links_bp
@@ -92,9 +92,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         # Bypass the tenant filter — at session-load time, g.tenant_id isn't
         # set yet (we're populating it). Without the bypass, the listener
         # filters out the user we're trying to load.
-        return db.session.scalar(
-            select(User).where(User.id == int(user_id)).execution_options(skip_tenant_filter=True)
-        )
+        return db.session.scalar(select(User).where(User.id == int(user_id)).execution_options(skip_tenant_filter=True))
 
     @login_manager.unauthorized_handler
     def _unauthorized():

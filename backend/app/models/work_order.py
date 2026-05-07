@@ -76,17 +76,11 @@ class WorkOrder(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Audita
     type: Mapped[str] = mapped_column(String(16), nullable=False)
     category: Mapped[str] = mapped_column(String(32), nullable=False)
     priority: Mapped[str] = mapped_column(String(16), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="draft", server_default="draft"
-    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="draft", server_default="draft")
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    asset_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("asset.id", ondelete="SET NULL"), nullable=True
-    )
-    location: Mapped[Any | None] = mapped_column(
-        Geometry(geometry_type="POINT", srid=4326), nullable=True
-    )
+    asset_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("asset.id", ondelete="SET NULL"), nullable=True)
+    location: Mapped[Any | None] = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=True)
     # FK lives in migration 0015 with a deferred name to dodge the
     # 0010↔0015 circular dependency. Declaring it here keeps autogenerate
     # honest and lets relationships flow through `wo_template`.
@@ -115,13 +109,9 @@ class WorkOrder(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Audita
     assigned_to: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True
     )
-    crew_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("crew.id", ondelete="SET NULL"), nullable=True
-    )
+    crew_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("crew.id", ondelete="SET NULL"), nullable=True)
     resolution: Mapped[str | None] = mapped_column(Text, nullable=True)
-    attrs: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    attrs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     # Free-text override populated when the operator's address differs
     # from the linked asset's `address_cached`. Empty/null = no override.
     address_override: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -134,9 +124,7 @@ class WorkOrder(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Audita
     )
     # Operator answers to the task's form fields. Separate from `attrs`
     # (asset-class schema payload) and from raw columns like priority.
-    task_data: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    task_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
 
     # Eager-loaded so the resolver can read through without round-trips.
     asset_obj: Mapped[Asset | None] = relationship(  # type: ignore[name-defined]  # forward-ref
@@ -179,9 +167,7 @@ class WorkOrderTask(Base, TimestampMixin, AuditableMixin):
     sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_complete: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
+    is_complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_by: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True
@@ -211,9 +197,7 @@ class WorkOrderTimeLog(Base, TenantScopedMixin, TimestampMixin, AuditableMixin):
         nullable=False,
         index=True,
     )
-    user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("user.id", ondelete="RESTRICT"), nullable=False
-    )
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("user.id", ondelete="RESTRICT"), nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     hours_decimal: Mapped[Decimal] = mapped_column(Numeric(7, 2), nullable=False)
@@ -260,9 +244,7 @@ class WorkOrderAttachment(Base, TimestampMixin, AuditableMixin):
     original_filename: Mapped[str] = mapped_column(String, nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     taken_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    geo: Mapped[Any | None] = mapped_column(
-        Geometry(geometry_type="POINT", srid=4326), nullable=True
-    )
+    geo: Mapped[Any | None] = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=True)
     uploaded_by: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True
     )

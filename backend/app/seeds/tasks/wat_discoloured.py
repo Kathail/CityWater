@@ -129,10 +129,7 @@ TASK_WAT_DISCOLOURED: dict[str, Any] = {
         },
         {
             "id": "discoloured_resolved_via_flush",
-            "condition": (
-                "cold_outcome == 'still_discoloured' && flush_minutes > 0 "
-                "&& outcome == 'resolved_on_site'"
-            ),
+            "condition": ("cold_outcome == 'still_discoloured' && flush_minutes > 0 && outcome == 'resolved_on_site'"),
             "text": (
                 "Cold tap did not clear after {cold_run_minutes} min. "
                 "Flushed nearest hydrant for {flush_minutes} min. "
@@ -146,10 +143,7 @@ TASK_WAT_DISCOLOURED: dict[str, Any] = {
         },
         {
             "id": "discoloured_still_bad",
-            "condition": (
-                "cold_outcome == 'still_discoloured' "
-                "&& outcome == 'follow_up_needed'"
-            ),
+            "condition": ("cold_outcome == 'still_discoloured' && outcome == 'follow_up_needed'"),
             "text": (
                 "Cold tap run for {cold_run_minutes} min with no improvement. "
                 "Flushed nearest hydrant for {flush_minutes} min. "
@@ -159,10 +153,7 @@ TASK_WAT_DISCOLOURED: dict[str, Any] = {
         },
         {
             "id": "discoloured_internal_plumbing",
-            "condition": (
-                "likely_cause == 'internal_plumbing' "
-                "|| outcome == 'referred_internal_plumbing'"
-            ),
+            "condition": ("likely_cause == 'internal_plumbing' || outcome == 'referred_internal_plumbing'"),
             "text": (
                 "Symptoms isolated to internal plumbing. "
                 "No distribution-side action required. "

@@ -8,8 +8,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from app.errors import ConflictError, NotFoundError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import ConflictError, NotFoundError, ValidationError
 from app.extensions import db
 from app.models import Asset, AssetClass, AuditLog, User
 from app.schemas.asset import AssetCreate, AssetUpdate
@@ -23,7 +23,6 @@ from app.services.permissions import require_roles
 assets_bp = Blueprint("assets", __name__, url_prefix="/api/v1/assets")
 
 
-
 def _payload(asset: Asset) -> dict[str, Any]:
     return {
         "asset_uid": asset.asset_uid,
@@ -31,9 +30,7 @@ def _payload(asset: Asset) -> dict[str, Any]:
         "domain": asset.asset_class.domain if asset.asset_class else "",
         "geometry": wkb_to_geojson(asset.geom),
         "install_date": asset.install_date.isoformat() if asset.install_date else None,
-        "decommission_date": (
-            asset.decommission_date.isoformat() if asset.decommission_date else None
-        ),
+        "decommission_date": (asset.decommission_date.isoformat() if asset.decommission_date else None),
         "material": asset.material,
         "diameter_mm": asset.diameter_mm,
         "length_m": str(asset.length_m) if asset.length_m is not None else None,
@@ -83,9 +80,7 @@ def list_assets():
 
     domain = request.args.get("domain")
     if domain:
-        stmt = stmt.join(AssetClass, Asset.class_code == AssetClass.code).where(
-            AssetClass.domain == domain
-        )
+        stmt = stmt.join(AssetClass, Asset.class_code == AssetClass.code).where(AssetClass.domain == domain)
 
     status = request.args.get("status")
     if status:
@@ -105,9 +100,7 @@ def list_assets():
     if q:
         like = f"%{q}%"
         stmt = stmt.where(
-            (Asset.asset_uid.ilike(like))
-            | (Asset.material.ilike(like))
-            | (Asset.manufacturer.ilike(like))
+            (Asset.asset_uid.ilike(like)) | (Asset.material.ilike(like)) | (Asset.manufacturer.ilike(like))
         )
 
     total = db.session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
@@ -138,16 +131,13 @@ def create_asset():
     geom_dict = data.geometry.model_dump(mode="json")
     if geom_dict.get("type") != asset_class.geometry_type:
         raise ValidationError(
-            f"class {data.class_code} requires geometry type "
-            f"{asset_class.geometry_type}, got {geom_dict.get('type')}",
+            f"class {data.class_code} requires geometry type {asset_class.geometry_type}, got {geom_dict.get('type')}",
             code="geometry_type_mismatch",
         )
 
     validate_attrs_against_class(data.attrs, asset_class)
 
-    asset_uid = data.asset_uid or next_asset_uid(
-        tenant_id=current_user.tenant_id, class_code=data.class_code
-    )
+    asset_uid = data.asset_uid or next_asset_uid(tenant_id=current_user.tenant_id, class_code=data.class_code)
 
     last_error: IntegrityError | None = None
     for _attempt in range(3):
@@ -245,16 +235,10 @@ def soft_delete_asset(asset_uid: str):
     # ondelete=SET NULL only fires on hard delete. See WO-P0-4.
     from app.models import WorkOrder, WorkOrderAsset
 
-    db.session.execute(
-        WorkOrder.__table__.update()
-        .where(WorkOrder.asset_id == asset.id)
-        .values(asset_id=None)
-    )
+    db.session.execute(WorkOrder.__table__.update().where(WorkOrder.asset_id == asset.id).values(asset_id=None))
     # And drop the M:N rows that reference the deleted asset — they'd
     # render as orphan stops with no readable display name otherwise.
-    db.session.execute(
-        WorkOrderAsset.__table__.delete().where(WorkOrderAsset.asset_id == asset.id)
-    )
+    db.session.execute(WorkOrderAsset.__table__.delete().where(WorkOrderAsset.asset_id == asset.id))
 
     db.session.commit()
     return "", 204
@@ -312,9 +296,7 @@ def _build_asset_query() -> Any:
 
     domain = request.args.get("domain")
     if domain:
-        stmt = stmt.join(AssetClass, Asset.class_code == AssetClass.code).where(
-            AssetClass.domain == domain
-        )
+        stmt = stmt.join(AssetClass, Asset.class_code == AssetClass.code).where(AssetClass.domain == domain)
 
     status = request.args.get("status")
     if status:
@@ -334,9 +316,7 @@ def _build_asset_query() -> Any:
     if q:
         like = f"%{q}%"
         stmt = stmt.where(
-            (Asset.asset_uid.ilike(like))
-            | (Asset.material.ilike(like))
-            | (Asset.manufacturer.ilike(like))
+            (Asset.asset_uid.ilike(like)) | (Asset.material.ilike(like)) | (Asset.manufacturer.ilike(like))
         )
     return stmt
 

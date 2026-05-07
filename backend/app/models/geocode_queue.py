@@ -30,9 +30,7 @@ class GeocodeQueue(Base):
     __table_args__ = (UniqueConstraint("asset_id", name="uq_geocode_queue_asset_id"),)
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=False), primary_key=True)
-    asset_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("asset.id", ondelete="CASCADE"), nullable=False
-    )
+    asset_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("asset.id", ondelete="CASCADE"), nullable=False)
     enqueued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)

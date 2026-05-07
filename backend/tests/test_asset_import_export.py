@@ -110,9 +110,7 @@ def test_csv_dry_run_writes_nothing(admin_client):
 
 def test_csv_partial_failures_continue(admin_client):
     body = CSV_HEADER + (
-        "WAT_HYD,,-76.5,39.3,,,,,,,,,,,,,,\n"
-        "NOPE,,-76.5,39.3,,,,,,,,,,,,,,\n"
-        "WAT_HYD,,-76.6,39.4,,,,,,,,,,,,,,\n"
+        "WAT_HYD,,-76.5,39.3,,,,,,,,,,,,,,\nNOPE,,-76.5,39.3,,,,,,,,,,,,,,\nWAT_HYD,,-76.6,39.4,,,,,,,,,,,,,,\n"
     )
     resp = _post_csv(admin_client, body)
     payload = resp.get_json()
@@ -260,11 +258,7 @@ def test_export_filters_by_class(admin_client, tenant):
     make_asset(tenant, class_code="SAN_MH", asset_uid="MH-F1")
     db.session.commit()
 
-    payload = json.loads(
-        admin_client.get("/api/v1/assets/export?format=geojson&class=WAT_HYD").get_data(
-            as_text=True
-        )
-    )
+    payload = json.loads(admin_client.get("/api/v1/assets/export?format=geojson&class=WAT_HYD").get_data(as_text=True))
     uids = {f["properties"]["asset_uid"] for f in payload["features"]}
     assert "HYD-F1" in uids
     assert "MH-F1" not in uids
@@ -307,9 +301,7 @@ def test_round_trip_geojson(admin_client, tenant):
 
 
 def test_perf_1000_rows_under_10s(admin_client):
-    rows = [
-        f"WAT_HYD,HYD-PERF-{i:05d},{-76.5 + i * 0.0001},{39.3},,,,,,,,,,,,,," for i in range(1000)
-    ]
+    rows = [f"WAT_HYD,HYD-PERF-{i:05d},{-76.5 + i * 0.0001},{39.3},,,,,,,,,,,,,," for i in range(1000)]
     body = CSV_HEADER + "\n".join(rows) + "\n"
 
     start = time.perf_counter()

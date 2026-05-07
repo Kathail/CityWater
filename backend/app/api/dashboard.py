@@ -54,83 +54,89 @@ def get_dashboard():
 
 
 def _wo_kpis(now: datetime, week_ago: datetime, month_ago: datetime) -> dict[str, Any]:
-    open_count = db.session.scalar(
-        select(func.count())
-        .select_from(WorkOrder)
-        .where(WorkOrder.status.in_(("open", "assigned", "in_progress")))
-    ) or 0
-    in_progress = db.session.scalar(
-        select(func.count())
-        .select_from(WorkOrder)
-        .where(WorkOrder.status == "in_progress")
-    ) or 0
-    overdue = db.session.scalar(
-        select(func.count())
-        .select_from(WorkOrder)
-        .where(
-            WorkOrder.due_by < now,
-            WorkOrder.status.in_(("open", "assigned", "in_progress")),
+    open_count = (
+        db.session.scalar(
+            select(func.count()).select_from(WorkOrder).where(WorkOrder.status.in_(("open", "assigned", "in_progress")))
         )
-    ) or 0
-    completed_week = db.session.scalar(
-        select(func.count())
-        .select_from(WorkOrder)
-        .where(
-            WorkOrder.status == "completed",
-            WorkOrder.completed_at >= week_ago,
+        or 0
+    )
+    in_progress = (
+        db.session.scalar(select(func.count()).select_from(WorkOrder).where(WorkOrder.status == "in_progress")) or 0
+    )
+    overdue = (
+        db.session.scalar(
+            select(func.count())
+            .select_from(WorkOrder)
+            .where(
+                WorkOrder.due_by < now,
+                WorkOrder.status.in_(("open", "assigned", "in_progress")),
+            )
         )
-    ) or 0
-    stops_completed_week = db.session.scalar(
-        select(func.count())
-        .select_from(WorkOrderAsset)
-        .where(WorkOrderAsset.completed_at >= week_ago)
-    ) or 0
-    hours_week = db.session.scalar(
-        select(func.coalesce(func.sum(WorkOrderTimeLog.hours_decimal), 0))
-        .where(WorkOrderTimeLog.started_at >= week_ago)
-    ) or 0
+        or 0
+    )
+    completed_week = (
+        db.session.scalar(
+            select(func.count())
+            .select_from(WorkOrder)
+            .where(
+                WorkOrder.status == "completed",
+                WorkOrder.completed_at >= week_ago,
+            )
+        )
+        or 0
+    )
+    stops_completed_week = (
+        db.session.scalar(
+            select(func.count()).select_from(WorkOrderAsset).where(WorkOrderAsset.completed_at >= week_ago)
+        )
+        or 0
+    )
+    hours_week = (
+        db.session.scalar(
+            select(func.coalesce(func.sum(WorkOrderTimeLog.hours_decimal), 0)).where(
+                WorkOrderTimeLog.started_at >= week_ago
+            )
+        )
+        or 0
+    )
     # Backlog: open WOs scheduled more than 30 days ago that are still
     # open. Use scheduled_for (operational time) rather than created_at
     # (intake time) — same reasoning as avg_close_hours below.
     sched = func.coalesce(WorkOrder.scheduled_for, WorkOrder.created_at)
-    stale_open = db.session.scalar(
-        select(func.count())
-        .select_from(WorkOrder)
-        .where(
-            WorkOrder.status.in_(("open", "assigned", "in_progress", "on_hold")),
-            sched < month_ago,
+    stale_open = (
+        db.session.scalar(
+            select(func.count())
+            .select_from(WorkOrder)
+            .where(
+                WorkOrder.status.in_(("open", "assigned", "in_progress", "on_hold")),
+                sched < month_ago,
+            )
         )
-    ) or 0
+        or 0
+    )
     # Completion rate: completed in last 30d / scheduled in last 30d. A
     # ratio supervisors recognise immediately (>1.0 = burning down,
     # <1.0 = backlog growing).
-    scheduled_30d = db.session.scalar(
-        select(func.count())
-        .select_from(WorkOrder)
-        .where(sched >= month_ago)
-    ) or 0
-    completed_30d = db.session.scalar(
-        select(func.count())
-        .select_from(WorkOrder)
-        .where(
-            WorkOrder.status == "completed",
-            WorkOrder.completed_at >= month_ago,
+    scheduled_30d = db.session.scalar(select(func.count()).select_from(WorkOrder).where(sched >= month_ago)) or 0
+    completed_30d = (
+        db.session.scalar(
+            select(func.count())
+            .select_from(WorkOrder)
+            .where(
+                WorkOrder.status == "completed",
+                WorkOrder.completed_at >= month_ago,
+            )
         )
-    ) or 0
-    completion_rate = (
-        round(completed_30d / scheduled_30d, 2) if scheduled_30d else None
+        or 0
     )
+    completion_rate = round(completed_30d / scheduled_30d, 2) if scheduled_30d else None
     # Average completion time in hours for WOs closed last 30d. Measure
     # operational duration (started → completed); fall back to scheduled
     # → completed when started_at isn't recorded. Avoids using created_at
     # which reflects the row's intake time, not work time.
     started = func.coalesce(WorkOrder.started_at, WorkOrder.scheduled_for)
     avg_close_hours = db.session.scalar(
-        select(
-            func.avg(
-                func.extract("epoch", WorkOrder.completed_at - started) / 3600.0
-            )
-        ).where(
+        select(func.avg(func.extract("epoch", WorkOrder.completed_at - started) / 3600.0)).where(
             WorkOrder.status == "completed",
             WorkOrder.completed_at >= month_ago,
             WorkOrder.completed_at.isnot(None),
@@ -147,48 +153,40 @@ def _wo_kpis(now: datetime, week_ago: datetime, month_ago: datetime) -> dict[str
         "stops_completed_this_week": int(stops_completed_week),
         "hours_this_week": float(hours_week),
         "completion_rate_30d": completion_rate,
-        "avg_close_hours_30d": (
-            round(float(avg_close_hours), 1) if avg_close_hours is not None else None
-        ),
+        "avg_close_hours_30d": (round(float(avg_close_hours), 1) if avg_close_hours is not None else None),
     }
 
 
 def _sr_kpis(week_ago: datetime, month_ago: datetime) -> dict[str, Any]:
-    new_count = db.session.scalar(
-        select(func.count())
-        .select_from(ServiceRequest)
-        .where(ServiceRequest.status == "new")
-    ) or 0
-    triaged = db.session.scalar(
-        select(func.count())
-        .select_from(ServiceRequest)
-        .where(ServiceRequest.status == "triaged")
-    ) or 0
-    dispatched = db.session.scalar(
-        select(func.count())
-        .select_from(ServiceRequest)
-        .where(ServiceRequest.status == "dispatched")
-    ) or 0
+    new_count = (
+        db.session.scalar(select(func.count()).select_from(ServiceRequest).where(ServiceRequest.status == "new")) or 0
+    )
+    triaged = (
+        db.session.scalar(select(func.count()).select_from(ServiceRequest).where(ServiceRequest.status == "triaged"))
+        or 0
+    )
+    dispatched = (
+        db.session.scalar(select(func.count()).select_from(ServiceRequest).where(ServiceRequest.status == "dispatched"))
+        or 0
+    )
     # Excludes "duplicate" so this agrees with avg_resolution_hours
     # below — both metrics now read "actual dispatch / resolution work,"
     # not "anything that left the inbox." DASH-P1-3.
-    closed_week = db.session.scalar(
-        select(func.count())
-        .select_from(ServiceRequest)
-        .where(
-            ServiceRequest.status == "closed",
-            ServiceRequest.closed_at >= week_ago,
+    closed_week = (
+        db.session.scalar(
+            select(func.count())
+            .select_from(ServiceRequest)
+            .where(
+                ServiceRequest.status == "closed",
+                ServiceRequest.closed_at >= week_ago,
+            )
         )
-    ) or 0
+        or 0
+    )
     # Average resolution time (hours) for SRs closed in the last 30d.
     # Excludes duplicates so the metric reflects actual dispatch work.
     avg_resolution_hours = db.session.scalar(
-        select(
-            func.avg(
-                func.extract("epoch", ServiceRequest.closed_at - ServiceRequest.reported_at)
-                / 3600.0
-            )
-        ).where(
+        select(func.avg(func.extract("epoch", ServiceRequest.closed_at - ServiceRequest.reported_at) / 3600.0)).where(
             ServiceRequest.status == "closed",
             ServiceRequest.closed_at >= month_ago,
             ServiceRequest.closed_at.isnot(None),
@@ -200,9 +198,7 @@ def _sr_kpis(week_ago: datetime, month_ago: datetime) -> dict[str, Any]:
         "dispatched": int(dispatched),
         "closed_this_week": int(closed_week),
         "avg_resolution_hours_30d": (
-            round(float(avg_resolution_hours), 1)
-            if avg_resolution_hours is not None
-            else None
+            round(float(avg_resolution_hours), 1) if avg_resolution_hours is not None else None
         ),
     }
 
@@ -247,61 +243,73 @@ def _today_queue(today_start: datetime, now: datetime) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for wo in rows:
         total, done = by_wo.get(wo.id, (0, 0))
-        out.append({
-            "wo_number": wo.wo_number,
-            "title": wo.title,
-            "category": wo.category,
-            "priority": wo.priority,
-            "status": wo.status,
-            "scheduled_for": wo.scheduled_for.isoformat() if wo.scheduled_for else None,
-            "due_by": wo.due_by.isoformat() if wo.due_by else None,
-            "is_overdue": bool(wo.due_by and wo.due_by < now),
-            "asset_total": total,
-            "asset_done": done,
-        })
+        out.append(
+            {
+                "wo_number": wo.wo_number,
+                "title": wo.title,
+                "category": wo.category,
+                "priority": wo.priority,
+                "status": wo.status,
+                "scheduled_for": wo.scheduled_for.isoformat() if wo.scheduled_for else None,
+                "due_by": wo.due_by.isoformat() if wo.due_by else None,
+                "is_overdue": bool(wo.due_by and wo.due_by < now),
+                "asset_total": total,
+                "asset_done": done,
+            }
+        )
     return out
 
 
 def _recent_activity(since: datetime) -> list[dict[str, Any]]:
     """Recent comments + status transitions across the tenant — last 48h,
     capped at 12. Mixed and re-sorted by occurred_at desc."""
-    comment_rows = db.session.execute(
-        select(Comment).where(Comment.created_at >= since).order_by(desc(Comment.created_at)).limit(20)
-    ).scalars().all()
+    comment_rows = (
+        db.session.execute(
+            select(Comment).where(Comment.created_at >= since).order_by(desc(Comment.created_at)).limit(20)
+        )
+        .scalars()
+        .all()
+    )
     # AuditLog isn't TenantScopedMixin — must filter explicitly so the
     # session listener doesn't accidentally let cross-tenant rows through.
-    audit_rows = db.session.execute(
-        select(AuditLog)
-        .where(
-            AuditLog.tenant_id == current_user.tenant_id,
-            AuditLog.occurred_at >= since,
-            AuditLog.action.in_(("wo_transition", "sr_transition", "sr_dispatch")),
+    audit_rows = (
+        db.session.execute(
+            select(AuditLog)
+            .where(
+                AuditLog.tenant_id == current_user.tenant_id,
+                AuditLog.occurred_at >= since,
+                AuditLog.action.in_(("wo_transition", "sr_transition", "sr_dispatch")),
+            )
+            .order_by(desc(AuditLog.occurred_at))
+            .limit(20)
         )
-        .order_by(desc(AuditLog.occurred_at))
-        .limit(20)
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     items: list[dict[str, Any]] = []
     for c in comment_rows:
-        items.append({
-            "kind": "comment",
-            "occurred_at": c.created_at.isoformat(),
-            "entity_type": c.entity_type,
-            "entity_id": c.entity_id,
-            "summary": c.body[:140],
-        })
+        items.append(
+            {
+                "kind": "comment",
+                "occurred_at": c.created_at.isoformat(),
+                "entity_type": c.entity_type,
+                "entity_id": c.entity_id,
+                "summary": c.body[:140],
+            }
+        )
     for ev in audit_rows:
         before = (ev.before or {}).get("status") if isinstance(ev.before, dict) else None
         after = (ev.after or {}).get("status") if isinstance(ev.after, dict) else None
-        items.append({
-            "kind": "transition",
-            "occurred_at": ev.occurred_at.isoformat(),
-            "entity_type": ev.entity_type,
-            "entity_id": ev.entity_id,
-            "summary": (
-                f"{before} → {after}" if before and after else ev.action
-            ),
-        })
+        items.append(
+            {
+                "kind": "transition",
+                "occurred_at": ev.occurred_at.isoformat(),
+                "entity_type": ev.entity_type,
+                "entity_id": ev.entity_id,
+                "summary": (f"{before} → {after}" if before and after else ev.action),
+            }
+        )
     items.sort(key=lambda x: x["occurred_at"], reverse=True)
     return items[:12]
 
@@ -380,9 +388,7 @@ def _by_area(now: datetime) -> list[dict[str, Any]]:
 
     # Hydrate the area metadata + counts.
     areas = db.session.scalars(
-        select(ServiceArea)
-        .where(ServiceArea.deleted_at.is_(None))
-        .order_by(ServiceArea.kind, ServiceArea.name)
+        select(ServiceArea).where(ServiceArea.deleted_at.is_(None)).order_by(ServiceArea.kind, ServiceArea.name)
     ).all()
     return [
         {

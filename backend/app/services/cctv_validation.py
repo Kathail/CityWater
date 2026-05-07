@@ -12,9 +12,7 @@ from app.schemas.cctv import CctvData
 
 def _known_codes() -> set[str]:
     rows = db.session.scalars(
-        select(PacpCode.code)
-        .where(PacpCode.is_active.is_(True))
-        .execution_options(skip_tenant_filter=True)
+        select(PacpCode.code).where(PacpCode.is_active.is_(True)).execution_options(skip_tenant_filter=True)
     ).all()
     return set(rows)
 
@@ -42,10 +40,7 @@ def validate_cctv(data: dict[str, Any]) -> dict[str, Any]:
         for idx, obs in enumerate(validated.observations):
             if obs.distance_m > max_d:
                 raise ValidationError(
-                    (
-                        f"observation[{idx}].distance_m ({obs.distance_m}) "
-                        f"exceeds length_surveyed_m ({max_d})"
-                    ),
+                    (f"observation[{idx}].distance_m ({obs.distance_m}) exceeds length_surveyed_m ({max_d})"),
                     code="distance_exceeds_length",
                 )
 

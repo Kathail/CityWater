@@ -11,8 +11,8 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
 
-from app.errors import ConflictError, NotFoundError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import ConflictError, NotFoundError, ValidationError
 from app.extensions import db
 from app.models import Asset, WorkOrder
 from app.models.inspection import Inspection
@@ -47,7 +47,6 @@ KIND_ASSET_COMPATIBILITY: dict[str, set[str]] = {
     "lift_station_round": {"SAN_LFT"},
     "cctv": {"SAN_MAIN", "STM_MAIN"},
 }
-
 
 
 def _user_roles() -> set[str]:
@@ -119,9 +118,7 @@ def _payload(ins: Inspection) -> dict[str, Any]:
     if ins.task_definition_id is not None:
         from app.models import TaskDefinition
 
-        td = db.session.scalar(
-            select(TaskDefinition).where(TaskDefinition.id == ins.task_definition_id)
-        )
+        td = db.session.scalar(select(TaskDefinition).where(TaskDefinition.id == ins.task_definition_id))
         task_definition_code = td.code if td else None
     return {
         "id": ins.id,
@@ -150,9 +147,7 @@ def _get_inspection(n: str) -> Inspection:
     if not _is_supervisor_or_admin() and "readonly" not in _user_roles():
         # Tech sees only inspections they performed OR linked to a WO they're assigned to
         own = ins.performed_by == current_user.id
-        wo_assigned = bool(
-            ins.work_order_obj and ins.work_order_obj.assigned_to == current_user.id
-        )
+        wo_assigned = bool(ins.work_order_obj and ins.work_order_obj.assigned_to == current_user.id)
         if not (own or wo_assigned):
             raise NotFoundError(f"inspection {n} not found")
     return ins
@@ -176,9 +171,7 @@ def list_inspections():
 
     wo_number = request.args.get("work_order")
     if wo_number:
-        stmt = stmt.join(WorkOrder, Inspection.work_order_id == WorkOrder.id).where(
-            WorkOrder.wo_number == wo_number
-        )
+        stmt = stmt.join(WorkOrder, Inspection.work_order_id == WorkOrder.id).where(WorkOrder.wo_number == wo_number)
 
     after = request.args.get("performed_after")
     if after:
@@ -194,18 +187,14 @@ def list_inspections():
     q = (request.args.get("q") or "").strip()
     if q:
         like = f"%{q}%"
-        stmt = stmt.where(
-            (Inspection.inspection_number.ilike(like)) | (Inspection.notes.ilike(like))
-        )
+        stmt = stmt.where((Inspection.inspection_number.ilike(like)) | (Inspection.notes.ilike(like)))
 
     if not _is_supervisor_or_admin() and "readonly" not in _user_roles():
         stmt = stmt.where(Inspection.performed_by == current_user.id)
 
     total = db.session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     items = db.session.scalars(
-        stmt.order_by(Inspection.performed_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        stmt.order_by(Inspection.performed_at.desc()).offset((page - 1) * page_size).limit(page_size)
     ).all()
 
     return jsonify(
@@ -403,8 +392,7 @@ def import_pacp():
     observations = (parsed or {}).get("observations") or []
     if len(observations) > _PACP_MAX_OBSERVATIONS:
         raise ValidationError(
-            f"PACP/WinCAN payload has {len(observations)} observations; "
-            f"cap is {_PACP_MAX_OBSERVATIONS} per inspection",
+            f"PACP/WinCAN payload has {len(observations)} observations; cap is {_PACP_MAX_OBSERVATIONS} per inspection",
             code="too_many_observations",
         )
     normalized_data = _normalize_data("cctv", parsed)

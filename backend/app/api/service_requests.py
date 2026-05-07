@@ -8,8 +8,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from app.errors import ConflictError, NotFoundError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import ConflictError, NotFoundError, ValidationError
 from app.extensions import db
 from app.models import Asset, ServiceRequest, WorkOrder
 from app.schemas.service_request import (
@@ -32,7 +32,6 @@ from app.services.tasks.match import find_matching_task
 from app.services.wo_number import next_wo_number
 
 service_requests_bp = Blueprint("service_requests", __name__, url_prefix="/api/v1/service-requests")
-
 
 
 def _user_roles() -> set[str]:
@@ -77,18 +76,14 @@ def _payload(sr: ServiceRequest) -> dict[str, Any]:
         wo_number = wo.wo_number if wo else None
     dup_sr_number = None
     if sr.duplicate_of_id:
-        parent = db.session.scalar(
-            select(ServiceRequest).where(ServiceRequest.id == sr.duplicate_of_id)
-        )
+        parent = db.session.scalar(select(ServiceRequest).where(ServiceRequest.id == sr.duplicate_of_id))
         dup_sr_number = parent.sr_number if parent else None
     asset_uid = sr.asset_obj.asset_uid if sr.asset_obj else None
     task_definition_code: str | None = None
     if sr.task_definition_id is not None:
         from app.models import TaskDefinition
 
-        td = db.session.scalar(
-            select(TaskDefinition).where(TaskDefinition.id == sr.task_definition_id)
-        )
+        td = db.session.scalar(select(TaskDefinition).where(TaskDefinition.id == sr.task_definition_id))
         task_definition_code = td.code if td else None
     return {
         "id": sr.id,
@@ -203,9 +198,7 @@ def list_service_requests():
 
     total = db.session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     items = db.session.scalars(
-        stmt.order_by(ServiceRequest.reported_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        stmt.order_by(ServiceRequest.reported_at.desc()).offset((page - 1) * page_size).limit(page_size)
     ).all()
 
     return jsonify(
@@ -355,17 +348,27 @@ def update_service_request(sr_number: str):
         # working state.
         non_status_changes = [
             f
-            for f in ("category", "domain", "priority", "caller_name",
-                      "caller_phone", "caller_email", "reported_address",
-                      "address_override", "description", "closure_notes",
-                      "closure_reason", "attrs", "task_data",
-                      "duplicate_of_sr_number")
+            for f in (
+                "category",
+                "domain",
+                "priority",
+                "caller_name",
+                "caller_phone",
+                "caller_email",
+                "reported_address",
+                "address_override",
+                "description",
+                "closure_notes",
+                "closure_reason",
+                "attrs",
+                "task_data",
+                "duplicate_of_sr_number",
+            )
             if getattr(data, f, None) is not None
         ]
         if non_status_changes:
             raise ConflictError(
-                "closed/duplicate SR can only be reopened (status change), "
-                f"not edit: {', '.join(non_status_changes)}",
+                f"closed/duplicate SR can only be reopened (status change), not edit: {', '.join(non_status_changes)}",
                 code="terminal_status",
             )
 
@@ -403,9 +406,7 @@ def update_service_request(sr_number: str):
             sr.closed_at = datetime.now(UTC)
         if data.status == "duplicate" and data.duplicate_of_sr_number:
             parent = db.session.scalar(
-                select(ServiceRequest).where(
-                    ServiceRequest.sr_number == data.duplicate_of_sr_number
-                )
+                select(ServiceRequest).where(ServiceRequest.sr_number == data.duplicate_of_sr_number)
             )
             if not parent:
                 raise ValidationError(

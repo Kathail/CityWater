@@ -79,9 +79,7 @@ def test_tick_fires_due_schedules(admin_client, tenant, app):
     assert summary["instances"]
     # WO should exist and be linked back to the schedule.
     g.skip_tenant_filter = True
-    wo = db.session.scalar(
-        db.select(WorkOrder).where(WorkOrder.wo_number == summary["instances"][0])
-    )
+    wo = db.session.scalar(db.select(WorkOrder).where(WorkOrder.wo_number == summary["instances"][0]))
     assert wo is not None
     assert wo.schedule_id == schedule.id
 

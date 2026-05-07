@@ -93,9 +93,7 @@ def render_pdf(
     ]
 
     if rows:
-        data: list[list[Any]] = [list(headers)] + [
-            ["" if v is None else v for v in row] for row in rows
-        ]
+        data: list[list[Any]] = [list(headers)] + [["" if v is None else v for v in row] for row in rows]
         table = Table(data, repeatRows=1)
         table.setStyle(
             TableStyle(

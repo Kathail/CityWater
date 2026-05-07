@@ -38,9 +38,7 @@ class TaskDefinition(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, A
 
     __tablename__ = "task_definition"
     __table_args__ = (
-        UniqueConstraint(
-            "tenant_id", "code", "version", name="uq_task_definition_tenant_code_version"
-        ),
+        UniqueConstraint("tenant_id", "code", "version", name="uq_task_definition_tenant_code_version"),
         CheckConstraint(
             f"produces IN ({', '.join(repr(v) for v in VALID_PRODUCES)})",
             name="ck_task_definition_produces",
@@ -50,8 +48,7 @@ class TaskDefinition(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, A
             name="ck_task_definition_status",
         ),
         CheckConstraint(
-            "default_domain IS NULL OR default_domain IN "
-            f"({', '.join(repr(v) for v in VALID_DOMAINS)})",
+            f"default_domain IS NULL OR default_domain IN ({', '.join(repr(v) for v in VALID_DOMAINS)})",
             name="ck_task_definition_default_domain",
         ),
     )
@@ -59,9 +56,7 @@ class TaskDefinition(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, A
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=False), primary_key=True)
     code: Mapped[str] = mapped_column(Text, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    status: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="draft", server_default="draft"
-    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="draft", server_default="draft")
     title: Mapped[str] = mapped_column(Text, nullable=False)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     produces: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -71,33 +66,17 @@ class TaskDefinition(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, A
     applies_to_classes: Mapped[list[str]] = mapped_column(
         ARRAY(String(64)), nullable=False, default=list, server_default="{}"
     )
-    triggers: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default="[]"
-    )
-    prefill: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
-    form: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default="[]"
-    )
-    canned_comments: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default="[]"
-    )
+    triggers: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    prefill: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    form: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    canned_comments: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     smart_comments: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False, default=list, server_default="[]"
     )
-    procedure: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
-    completion: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
-    spawns: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default="[]"
-    )
-    clocks: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default="[]"
-    )
+    procedure: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    completion: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    spawns: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    clocks: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     lang: Mapped[str] = mapped_column(String(8), nullable=False, default="en", server_default="en")
     # TimestampMixin / SoftDeleteMixin already supply created_at / updated_at /
     # deleted_at, so we don't redeclare them here.

@@ -371,9 +371,7 @@ def _cmp(op: str, a: Any, b: Any) -> bool:
         if op == Tok.GTE:
             return a >= b
     except TypeError as e:
-        raise ExpressionEvalError(
-            f"cannot compare {type(a).__name__} {op} {type(b).__name__}"
-        ) from e
+        raise ExpressionEvalError(f"cannot compare {type(a).__name__} {op} {type(b).__name__}") from e
     raise ExpressionEvalError(f"unknown operator {op!r}")
 
 

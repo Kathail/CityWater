@@ -72,9 +72,7 @@ def _driver() -> EmailDriver:
     settings = current_app.config["SETTINGS"]
     if settings.email_provider == "resend":
         if not settings.resend_api_key:
-            logger.warning(
-                "email_provider=resend but RESEND_API_KEY unset — falling back to stdout"
-            )
+            logger.warning("email_provider=resend but RESEND_API_KEY unset — falling back to stdout")
             return StdoutDriver()
         return ResendDriver(api_key=settings.resend_api_key, sender=settings.email_from)
     return StdoutDriver()

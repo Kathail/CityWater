@@ -7,8 +7,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from app.errors import ConflictError, NotFoundError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import ConflictError, NotFoundError
 from app.extensions import db
 from app.models import Role, User, UserRole
 from app.schemas.user import (
@@ -23,7 +23,6 @@ from app.services.permissions import require_roles
 from app.utils.uids import generate_user_uid
 
 users_bp = Blueprint("users", __name__, url_prefix="/api/v1/users")
-
 
 
 def _user_payload(user: User) -> dict:

@@ -49,13 +49,9 @@ class ServiceArea(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Audi
     code: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
-    geom: Mapped[Any] = mapped_column(
-        Geometry(geometry_type="MULTIPOLYGON", srid=4326), nullable=False
-    )
+    geom: Mapped[Any] = mapped_column(Geometry(geometry_type="MULTIPOLYGON", srid=4326), nullable=False)
     color: Mapped[str | None] = mapped_column(String(16), nullable=True)
     parent_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("service_area.id", ondelete="SET NULL"), nullable=True
     )
-    attrs: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    attrs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")

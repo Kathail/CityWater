@@ -57,9 +57,7 @@ def _instantiate_work_order(schedule: Schedule, now: datetime) -> WorkOrder:
     template = None
     template_id = spec.get("template_id")
     if template_id is not None:
-        template = db.session.scalar(
-            select(WoTemplate).where(WoTemplate.id == template_id)
-        )
+        template = db.session.scalar(select(WoTemplate).where(WoTemplate.id == template_id))
 
     wo_number = next_wo_number(tenant_id=schedule.tenant_id)
     wo = WorkOrder(
@@ -67,8 +65,7 @@ def _instantiate_work_order(schedule: Schedule, now: datetime) -> WorkOrder:
         wo_number=wo_number,
         type=spec.get("type", "planned"),
         category=spec.get("category") or (template.category if template else "other"),
-        priority=spec.get("priority")
-        or (template.default_priority if template else "normal"),
+        priority=spec.get("priority") or (template.default_priority if template else "normal"),
         status="open",
         title=spec.get("title") or schedule.name,
         description=spec.get("description") or (template.instructions if template else None),

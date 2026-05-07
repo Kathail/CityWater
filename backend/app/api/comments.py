@@ -14,8 +14,8 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import select
 
-from app.errors import ForbiddenError, NotFoundError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import ForbiddenError, NotFoundError, ValidationError
 from app.extensions import db
 from app.models import Comment, Inspection, Schedule, ServiceRequest, User, WorkOrder
 from app.schemas.comment import (
@@ -27,7 +27,6 @@ from app.schemas.comment import (
 from app.services.audit import emit_event
 
 comments_bp = Blueprint("comments", __name__, url_prefix="/api/v1/comments")
-
 
 
 def _verify_entity(kind: str, entity_id: int) -> None:
@@ -94,9 +93,7 @@ def list_comments():
         .order_by(Comment.created_at.asc())
     ).all()
     return jsonify(
-        CommentListResponse(
-            items=[CommentRead.model_validate(_payload(r)) for r in rows]
-        ).model_dump(mode="json")
+        CommentListResponse(items=[CommentRead.model_validate(_payload(r)) for r in rows]).model_dump(mode="json")
     )
 
 

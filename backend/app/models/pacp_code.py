@@ -25,13 +25,7 @@ class PacpCode(Base, TimestampMixin):
     code: Mapped[str] = mapped_column(String(16), primary_key=True)
     description: Mapped[str] = mapped_column(String, nullable=False)
     group: Mapped[str] = mapped_column(String(32), nullable=False)
-    is_structural: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
-    is_om: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
+    is_structural: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    is_om: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     default_severity: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default="true"
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")

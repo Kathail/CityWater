@@ -15,8 +15,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.errors import ConflictError, NotFoundError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import ConflictError, NotFoundError, ValidationError
 from app.extensions import csrf, db, limiter
 from app.models import Invitation, Role, Tenant, User, UserRole
 from app.schemas.invitation import (
@@ -36,7 +36,6 @@ from app.utils.uids import generate_user_uid
 logger = logging.getLogger(__name__)
 
 invitations_bp = Blueprint("invitations", __name__, url_prefix="/api/v1/invitations")
-
 
 
 def _accept_url(token: str) -> str:
@@ -59,9 +58,7 @@ def _payload(inv: Invitation) -> dict:
 def list_invitations():
     items = db.session.scalars(select(Invitation).order_by(Invitation.created_at.desc())).all()
     return jsonify(
-        InvitationListResponse(items=[InvitationRead.model_validate(i) for i in items]).model_dump(
-            mode="json"
-        )
+        InvitationListResponse(items=[InvitationRead.model_validate(i) for i in items]).model_dump(mode="json")
     )
 
 
@@ -229,9 +226,7 @@ def accept_invitation():
 
     # Check for an existing user with the same email in the tenant — the
     # admin may have created one manually since the invite was sent.
-    existing = db.session.scalar(
-        select(User).where(User.tenant_id == inv.tenant_id, User.email == inv.email)
-    )
+    existing = db.session.scalar(select(User).where(User.tenant_id == inv.tenant_id, User.email == inv.email))
     if existing:
         raise ConflictError(
             "a user with this email already exists",

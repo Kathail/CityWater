@@ -50,17 +50,11 @@ class Schedule(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Auditab
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
     rrule: Mapped[str] = mapped_column(Text, nullable=False)
-    spec: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
-    asset_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("asset.id", ondelete="SET NULL"), nullable=True
-    )
+    spec: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    asset_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("asset.id", ondelete="SET NULL"), nullable=True)
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default="true"
-    )
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     created_by: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True
     )

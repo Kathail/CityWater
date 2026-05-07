@@ -40,9 +40,7 @@ def _payload(ac: AssetClass) -> dict:
 @login_required
 def list_asset_classes():
     items = db.session.scalars(
-        select(AssetClass)
-        .order_by(AssetClass.domain, AssetClass.code)
-        .execution_options(skip_tenant_filter=True)
+        select(AssetClass).order_by(AssetClass.domain, AssetClass.code).execution_options(skip_tenant_filter=True)
     ).all()
     return jsonify([_payload(ac) for ac in items])
 

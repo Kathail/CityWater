@@ -16,6 +16,4 @@ class Tenant(Base, TimestampMixin, AuditableMixin):
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=False), primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     slug: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
-    settings: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    settings: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")

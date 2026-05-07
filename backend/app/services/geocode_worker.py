@@ -47,9 +47,7 @@ def tick(*, batch_size: int = 100) -> dict[str, Any]:
     the listener."""
     g.skip_tenant_filter = True
 
-    rows = db.session.scalars(
-        select(GeocodeQueue).order_by(GeocodeQueue.enqueued_at.asc()).limit(batch_size)
-    ).all()
+    rows = db.session.scalars(select(GeocodeQueue).order_by(GeocodeQueue.enqueued_at.asc()).limit(batch_size)).all()
 
     geocoded = 0
     failed = 0

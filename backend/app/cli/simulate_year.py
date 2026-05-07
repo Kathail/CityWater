@@ -116,50 +116,109 @@ _STOP_CLASS: dict[str, str] = {
 # wo.task_data for completed daily WOs.
 WO_TASK_DATA_PRESETS: dict[str, list[dict[str, Any]]] = {
     "WAT-TASK-HYDRANT-FLUSH": [
-        {"flush_completed": True, "data_recorded": True,
-         "flush_minutes": 8, "water_quality_improved": True},
-        {"flush_completed": True, "data_recorded": True,
-         "flush_minutes": 12, "water_quality_improved": True},
+        {
+            "flush_completed": True,
+            "data_recorded": True,
+            "flush_minutes": 8,
+            "water_quality_improved": True,
+        },
+        {
+            "flush_completed": True,
+            "data_recorded": True,
+            "flush_minutes": 12,
+            "water_quality_improved": True,
+        },
     ],
     "WAT-TASK-VALVE-EXERCISE": [
-        {"valve_exercised": True, "data_recorded": True, "lubricated": True,
-         "valve_condition": "normal", "turns": 14},
-        {"valve_exercised": True, "data_recorded": True, "lubricated": True,
-         "valve_condition": "stiff", "turns": 10},
+        {
+            "valve_exercised": True,
+            "data_recorded": True,
+            "lubricated": True,
+            "valve_condition": "normal",
+            "turns": 14,
+        },
+        {
+            "valve_exercised": True,
+            "data_recorded": True,
+            "lubricated": True,
+            "valve_condition": "stiff",
+            "turns": 10,
+        },
     ],
     "WAT-TASK-HYDRANT-FLOW": [
-        {"static_pressure_recorded": True, "flow_test_completed": True,
-         "calculations_complete": True, "flow_gpm": 1240,
-         "residual_psi": 48, "color_class": "blue"},
-        {"static_pressure_recorded": True, "flow_test_completed": True,
-         "calculations_complete": True, "flow_gpm": 880,
-         "residual_psi": 35, "color_class": "green"},
+        {
+            "static_pressure_recorded": True,
+            "flow_test_completed": True,
+            "calculations_complete": True,
+            "flow_gpm": 1240,
+            "residual_psi": 48,
+            "color_class": "blue",
+        },
+        {
+            "static_pressure_recorded": True,
+            "flow_test_completed": True,
+            "calculations_complete": True,
+            "flow_gpm": 880,
+            "residual_psi": 35,
+            "color_class": "green",
+        },
     ],
     "SEW-TASK-LIFT-STATION": [
-        {"wet_well_checked": True, "data_recorded": True, "generator_tested": True,
-         "no_issues": True, "wet_well_level_normal": True, "pumps_ok": True,
-         "wet_well_level_m": 1.8, "pump1_runtime_h": 124.5,
-         "pump2_runtime_h": 119.2},
+        {
+            "wet_well_checked": True,
+            "data_recorded": True,
+            "generator_tested": True,
+            "no_issues": True,
+            "wet_well_level_normal": True,
+            "pumps_ok": True,
+            "wet_well_level_m": 1.8,
+            "pump1_runtime_h": 124.5,
+            "pump2_runtime_h": 119.2,
+        },
     ],
     "SEW-TASK-MANHOLE-INSPECT": [
-        {"manhole_inspected": True, "data_recorded": True, "h2s_checked": True,
-         "overall_condition": 2, "frame_condition": "good",
-         "chimney_condition": "good", "bench_condition": "good"},
+        {
+            "manhole_inspected": True,
+            "data_recorded": True,
+            "h2s_checked": True,
+            "overall_condition": 2,
+            "frame_condition": "good",
+            "chimney_condition": "good",
+            "bench_condition": "good",
+        },
     ],
     "SEW-TASK-CCTV": [
-        {"survey_completed": True, "ratings_complete": True,
-         "recommendations_complete": True, "structural_total": 4,
-         "om_total": 3, "length_surveyed_m": 145},
+        {
+            "survey_completed": True,
+            "ratings_complete": True,
+            "recommendations_complete": True,
+            "structural_total": 4,
+            "om_total": 3,
+            "length_surveyed_m": 145,
+        },
     ],
     "STM-TASK-CB-INSPECT": [
-        {"sediment_measured": True, "structure_inspected": True,
-         "sediment_depth_m": 0.10, "grate_good": True},
-        {"sediment_measured": True, "structure_inspected": True,
-         "sediment_depth_m": 0.28, "needs_cleaning": True},
+        {
+            "sediment_measured": True,
+            "structure_inspected": True,
+            "sediment_depth_m": 0.10,
+            "grate_good": True,
+        },
+        {
+            "sediment_measured": True,
+            "structure_inspected": True,
+            "sediment_depth_m": 0.28,
+            "needs_cleaning": True,
+        },
     ],
     "STM-TASK-CB-CLOGGED": [
-        {"basin_cleared": True, "outlet_checked": True, "drainage_restored": True,
-         "sediment_volume": "1/3 truckload", "sediment_depth_m": 0.18},
+        {
+            "basin_cleared": True,
+            "outlet_checked": True,
+            "drainage_restored": True,
+            "sediment_volume": "1/3 truckload",
+            "sediment_depth_m": 0.18,
+        },
     ],
     "STM-TASK-DITCH-CLEAN": [
         {"ditch_cleaned": True, "flow_path_clear": True, "length_cleaned_m": 75},
@@ -207,40 +266,84 @@ SR_CATEGORY_TASK = {
 # values. Empty SRs stay open (no task_data).
 SR_TASK_DATA_PRESETS: dict[str, list[dict[str, Any]]] = {
     "WAT-TASK-DISCOLOURED": [
-        {"site_visited": True, "cold_run_minutes": 10, "cold_outcome": "cleared",
-         "chlorine_residual": 0.18, "outcome": "resolved_on_site",
-         "likely_cause": "hydrant_use"},
-        {"site_visited": True, "cold_run_minutes": 12, "cold_outcome": "still_discoloured",
-         "flush_minutes": 6, "chlorine_residual": 0.22, "outcome": "resolved_on_site",
-         "likely_cause": "recent_main_work"},
-        {"site_visited": True, "cold_run_minutes": 8, "cold_outcome": "cleared",
-         "chlorine_residual": 0.14, "likely_cause": "internal_plumbing",
-         "outcome": "referred_internal_plumbing"},
+        {
+            "site_visited": True,
+            "cold_run_minutes": 10,
+            "cold_outcome": "cleared",
+            "chlorine_residual": 0.18,
+            "outcome": "resolved_on_site",
+            "likely_cause": "hydrant_use",
+        },
+        {
+            "site_visited": True,
+            "cold_run_minutes": 12,
+            "cold_outcome": "still_discoloured",
+            "flush_minutes": 6,
+            "chlorine_residual": 0.22,
+            "outcome": "resolved_on_site",
+            "likely_cause": "recent_main_work",
+        },
+        {
+            "site_visited": True,
+            "cold_run_minutes": 8,
+            "cold_outcome": "cleared",
+            "chlorine_residual": 0.14,
+            "likely_cause": "internal_plumbing",
+            "outcome": "referred_internal_plumbing",
+        },
     ],
     "WAT-TASK-LOW-PRESSURE": [
-        {"area_checked": True, "pressure_tested": True, "valve_position": "partially_closed",
-         "valve_location": "Birch & 7th", "outcome": "resolved_on_site"},
+        {
+            "area_checked": True,
+            "pressure_tested": True,
+            "valve_position": "partially_closed",
+            "valve_location": "Birch & 7th",
+            "outcome": "resolved_on_site",
+        },
     ],
     "WAT-TASK-NO-WATER": [
-        {"area_checked": True, "valves_checked": True, "valve_closed": True,
-         "valve_location": "Cedar & 3rd", "outcome": "resolved_on_site"},
+        {
+            "area_checked": True,
+            "valves_checked": True,
+            "valve_closed": True,
+            "valve_location": "Cedar & 3rd",
+            "outcome": "resolved_on_site",
+        },
     ],
     "WAT-TASK-HYDRANT-HIT": [
-        {"damage_assessed": True, "hydrant_status": "knocked_over",
-         "hydrant_repaired": True, "flow_tested": True},
+        {
+            "damage_assessed": True,
+            "hydrant_status": "knocked_over",
+            "hydrant_repaired": True,
+            "flow_tested": True,
+        },
     ],
     "SEW-TASK-BACKUP": [
-        {"site_assessed": True, "blockage_cleared": True, "flow_restored": True,
-         "documentation_complete": True, "backup_cleared": True,
-         "likely_cause": "grease"},
+        {
+            "site_assessed": True,
+            "blockage_cleared": True,
+            "flow_restored": True,
+            "documentation_complete": True,
+            "backup_cleared": True,
+            "likely_cause": "grease",
+        },
     ],
     "SEW-TASK-ODOR": [
-        {"source_located": True, "area_inspected": True,
-         "likely_cause": "dry_trap", "outcome": "advised_customer"},
+        {
+            "source_located": True,
+            "area_inspected": True,
+            "likely_cause": "dry_trap",
+            "outcome": "advised_customer",
+        },
     ],
     "STM-TASK-CB-CLOGGED": [
-        {"basin_cleared": True, "outlet_checked": True, "drainage_restored": True,
-         "sediment_volume": "1/3 truckload", "sediment_depth_m": 0.18},
+        {
+            "basin_cleared": True,
+            "outlet_checked": True,
+            "drainage_restored": True,
+            "sediment_volume": "1/3 truckload",
+            "sediment_depth_m": 0.18,
+        },
     ],
 }
 
@@ -297,8 +400,16 @@ SR_DESCRIPTIONS = {
 }
 
 CALLER_NAMES = [
-    "Jane Doe", "Marcus Lee", "Priya Patel", "Sam Cohen", "Elena Park",
-    "Diane Wright", "Tom Nguyen", "Rachel Kim", "Karim Adebayo", "Lila Rossi",
+    "Jane Doe",
+    "Marcus Lee",
+    "Priya Patel",
+    "Sam Cohen",
+    "Elena Park",
+    "Diane Wright",
+    "Tom Nguyen",
+    "Rachel Kim",
+    "Karim Adebayo",
+    "Lila Rossi",
 ]
 
 
@@ -408,39 +519,40 @@ def _wipe_simulated(tenant_id: int) -> None:
 
 def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
     rng = random.Random(seed)
-    counts = {"daily_wo": 0, "sr": 0, "sr_attached": 0, "inspection": 0,
-              "comment": 0, "time_log": 0}
+    counts = {
+        "daily_wo": 0,
+        "sr": 0,
+        "sr_attached": 0,
+        "inspection": 0,
+        "comment": 0,
+        "time_log": 0,
+    }
 
-    users = db.session.execute(
-        select(User).where(User.tenant_id == tenant.id)
-    ).scalars().all()
+    users = db.session.execute(select(User).where(User.tenant_id == tenant.id)).scalars().all()
     if not users:
         raise click.UsageError("Tenant has no users — seed-demo first")
-    operators = [
-        u for u in users
-        if "tech" in (u.email or "") or "supervisor" in (u.email or "")
-    ]
+    operators = [u for u in users if "tech" in (u.email or "") or "supervisor" in (u.email or "")]
     if not operators:
         operators = users
     intake = next((u for u in users if "intake" in (u.email or "")), users[0])
 
-    crews = db.session.execute(
-        select(Crew).where(Crew.tenant_id == tenant.id)
-    ).scalars().all()
+    crews = db.session.execute(select(Crew).where(Crew.tenant_id == tenant.id)).scalars().all()
 
-    assets = db.session.execute(
-        select(Asset).where(Asset.tenant_id == tenant.id)
-    ).scalars().all()
+    assets = db.session.execute(select(Asset).where(Asset.tenant_id == tenant.id)).scalars().all()
     assets_by_class: dict[str, list[Asset]] = {}
     for a in assets:
         assets_by_class.setdefault(a.class_code, []).append(a)
 
-    tasks = db.session.execute(
-        select(TaskDefinition).where(
-            TaskDefinition.tenant_id == tenant.id,
-            TaskDefinition.status == "active",
+    tasks = (
+        db.session.execute(
+            select(TaskDefinition).where(
+                TaskDefinition.tenant_id == tenant.id,
+                TaskDefinition.status == "active",
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     tasks_by_code = {t.code: t for t in tasks}
 
     sr_taken: set[str] = set()
@@ -449,14 +561,13 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
 
     domain_assets = {
         "water": assets_by_class.get("WAT_HYD", [])
-                 + assets_by_class.get("WAT_MAIN", [])
-                 + assets_by_class.get("WAT_VLV", [])
-                 + assets_by_class.get("WAT_SVC", []),
+        + assets_by_class.get("WAT_MAIN", [])
+        + assets_by_class.get("WAT_VLV", [])
+        + assets_by_class.get("WAT_SVC", []),
         "sewer": assets_by_class.get("SAN_MAIN", [])
-                 + assets_by_class.get("SAN_MH", [])
-                 + assets_by_class.get("SAN_LFT", []),
-        "storm": assets_by_class.get("STM_CB", [])
-                 + assets_by_class.get("STM_MAIN", []),
+        + assets_by_class.get("SAN_MH", [])
+        + assets_by_class.get("SAN_LFT", []),
+        "storm": assets_by_class.get("STM_CB", []) + assets_by_class.get("STM_MAIN", []),
     }
     for k, v in list(domain_assets.items()):
         if not v:
@@ -507,11 +618,13 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
                     )[0]
                 elif cursor < end_day:
                     final = rng.choices(
-                        ["completed", "in_progress", "open"], weights=[5, 3, 2],
+                        ["completed", "in_progress", "open"],
+                        weights=[5, 3, 2],
                     )[0]
                 else:
                     final = rng.choices(
-                        ["assigned", "open", "in_progress"], weights=[4, 3, 2],
+                        ["assigned", "open", "in_progress"],
+                        weights=[4, 3, 2],
                     )[0]
 
                 started_at = None
@@ -519,9 +632,7 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
                 if final in {"in_progress", "completed", "cancelled"}:
                     started_at = scheduled + timedelta(hours=rng.randint(0, 2))
                 if final == "completed":
-                    completed_at = started_at + timedelta(
-                        hours=rng.randint(2, 7)
-                    )
+                    completed_at = started_at + timedelta(hours=rng.randint(2, 7))
                     if completed_at > today:
                         completed_at = today - timedelta(hours=1)
 
@@ -532,8 +643,12 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
                 wo = WorkOrder(
                     tenant_id=tenant.id,
                     wo_number=_next_number(
-                        db.session, WorkOrder, WorkOrder.wo_number,
-                        wo_taken, "WO-", 200000,
+                        db.session,
+                        WorkOrder,
+                        WorkOrder.wo_number,
+                        wo_taken,
+                        "WO-",
+                        200000,
                     ),
                     type="planned",
                     category=category,
@@ -548,11 +663,13 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
                     crew_id=crew.id if crew else None,
                     task_definition_id=task.id if task else None,
                     task_data=task_data,
-                    attrs=_label_simulated({
-                        "domain": domain,
-                        "district": district,
-                        "daily": True,
-                    }),
+                    attrs=_label_simulated(
+                        {
+                            "domain": domain,
+                            "district": district,
+                            "daily": True,
+                        }
+                    ),
                 )
                 db.session.add(wo)
                 db.session.flush()
@@ -580,21 +697,21 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
                         # If completed, mark each stop completed during
                         # the WO's window.
                         completed_stop = (
-                            (started_at or scheduled) + timedelta(
-                                minutes=rng.randint(15, 240)
-                            )
+                            (started_at or scheduled) + timedelta(minutes=rng.randint(15, 240))
                             if final == "completed"
                             else None
                         )
-                        db.session.add(WorkOrderAsset(
-                            work_order_id=wo.id,
-                            asset_id=a.id,
-                            tenant_id=wo.tenant_id,
-                            role="primary" if seq == 1 else "affected",
-                            sequence=seq,
-                            completed_at=completed_stop,
-                            created_at=datetime.now(UTC),
-                        ))
+                        db.session.add(
+                            WorkOrderAsset(
+                                work_order_id=wo.id,
+                                asset_id=a.id,
+                                tenant_id=wo.tenant_id,
+                                role="primary" if seq == 1 else "affected",
+                                sequence=seq,
+                                completed_at=completed_stop,
+                                created_at=datetime.now(UTC),
+                            )
+                        )
 
                 # Time logs on completed / in_progress daily WOs.
                 if final in {"completed", "in_progress"} and started_at:
@@ -606,17 +723,17 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
                         seg_end = min(log_cursor + timedelta(hours=seg), end_cap)
                         if seg_end <= log_cursor:
                             break
-                        db.session.add(WorkOrderTimeLog(
-                            work_order_id=wo.id,
-                            tenant_id=wo.tenant_id,
-                            user_id=operator.id,
-                            started_at=log_cursor,
-                            ended_at=seg_end,
-                            hours_decimal=Decimal(
-                                f"{(seg_end - log_cursor).total_seconds() / 3600:.2f}"
-                            ),
-                            notes=f"[sim] {rng.choice(['Travel', 'On site', 'Documenting'])}",
-                        ))
+                        db.session.add(
+                            WorkOrderTimeLog(
+                                work_order_id=wo.id,
+                                tenant_id=wo.tenant_id,
+                                user_id=operator.id,
+                                started_at=log_cursor,
+                                ended_at=seg_end,
+                                hours_decimal=Decimal(f"{(seg_end - log_cursor).total_seconds() / 3600:.2f}"),
+                                notes=f"[sim] {rng.choice(['Travel', 'On site', 'Documenting'])}",
+                            )
+                        )
                         counts["time_log"] += 1
                         log_cursor = seg_end + timedelta(minutes=rng.randint(0, 30))
                         if log_cursor >= end_cap:
@@ -625,14 +742,16 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
                 # Operator wrap-up comments on completed WOs.
                 if final == "completed":
                     for _ in range(rng.choices([1, 2], weights=[6, 4])[0]):
-                        db.session.add(Comment(
-                            tenant_id=tenant.id,
-                            entity_type="work_order",
-                            entity_id=wo.id,
-                            body=f"[sim] {rng.choice(['Route complete.', 'No issues found on route.', 'All assignments closed for the day.'])}",
-                            created_by=operator.id,
-                            created_at=(completed_at or scheduled),
-                        ))
+                        db.session.add(
+                            Comment(
+                                tenant_id=tenant.id,
+                                entity_type="work_order",
+                                entity_id=wo.id,
+                                body=f"[sim] {rng.choice(['Route complete.', 'No issues found on route.', 'All assignments closed for the day.'])}",
+                                created_by=operator.id,
+                                created_at=(completed_at or scheduled),
+                            )
+                        )
                         counts["comment"] += 1
         cursor += timedelta(days=1)
 
@@ -668,16 +787,18 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
 
         # Populate task_data when the SR has been worked.
         sr_task_data: dict[str, Any] = {}
-        if (sr_status in {"dispatched", "closed"}
-                and sr_task_code
-                and sr_task_code in SR_TASK_DATA_PRESETS):
+        if sr_status in {"dispatched", "closed"} and sr_task_code and sr_task_code in SR_TASK_DATA_PRESETS:
             sr_task_data = dict(rng.choice(SR_TASK_DATA_PRESETS[sr_task_code]))
 
         sr = ServiceRequest(
             tenant_id=tenant.id,
             sr_number=_next_number(
-                db.session, ServiceRequest, ServiceRequest.sr_number,
-                sr_taken, "SR-", 100000,
+                db.session,
+                ServiceRequest,
+                ServiceRequest.sr_number,
+                sr_taken,
+                "SR-",
+                100000,
             ),
             category=category,
             domain=domain,
@@ -686,20 +807,14 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
             reported_at=when,
             caller_name=rng.choice(CALLER_NAMES),
             caller_phone=f"555-{rng.randint(1000, 9999)}",
-            reported_address=getattr(asset, "address_cached", None)
-                or f"{rng.randint(10, 9999)} Main St",
+            reported_address=getattr(asset, "address_cached", None) or f"{rng.randint(10, 9999)} Main St",
             asset_id=asset.id if asset else None,
-            description=rng.choice(
-                SR_DESCRIPTIONS.get(category, ["Reported issue."])
-            ),
+            description=rng.choice(SR_DESCRIPTIONS.get(category, ["Reported issue."])),
             intake_user_id=intake.id,
             task_definition_id=sr_task.id if sr_task else None,
             task_data=sr_task_data,
-            closed_at=(when + timedelta(hours=rng.randint(2, 48)))
-                if sr_status in {"closed", "duplicate"} else None,
-            closure_reason=("resolved" if sr_status == "closed"
-                            else "duplicate" if sr_status == "duplicate"
-                            else None),
+            closed_at=(when + timedelta(hours=rng.randint(2, 48))) if sr_status in {"closed", "duplicate"} else None,
+            closure_reason=("resolved" if sr_status == "closed" else "duplicate" if sr_status == "duplicate" else None),
             attrs=_label_simulated({}),
         )
         db.session.add(sr)
@@ -723,14 +838,16 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
 
         # Light comments on a fraction of SRs.
         for _ in range(rng.choices([0, 1, 2], weights=[55, 32, 13])[0]):
-            db.session.add(Comment(
-                tenant_id=tenant.id,
-                entity_type="service_request",
-                entity_id=sr.id,
-                body=f"[sim] {rng.choice(['Customer called back to confirm details.', 'Spoke with neighbour — same issue reported.', 'Left voicemail with caller.'])}",
-                created_by=intake.id,
-                created_at=when + timedelta(hours=rng.randint(1, 48)),
-            ))
+            db.session.add(
+                Comment(
+                    tenant_id=tenant.id,
+                    entity_type="service_request",
+                    entity_id=sr.id,
+                    body=f"[sim] {rng.choice(['Customer called back to confirm details.', 'Spoke with neighbour — same issue reported.', 'Left voicemail with caller.'])}",
+                    created_by=intake.id,
+                    created_at=when + timedelta(hours=rng.randint(1, 48)),
+                )
+            )
             counts["comment"] += 1
 
         if i % 25 == 0:
@@ -750,8 +867,12 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
         ins = Inspection(
             tenant_id=tenant.id,
             inspection_number=_next_number(
-                db.session, Inspection, Inspection.inspection_number,
-                insp_taken, "INS-", 300000,
+                db.session,
+                Inspection,
+                Inspection.inspection_number,
+                insp_taken,
+                "INS-",
+                300000,
             ),
             kind=kind,
             asset_id=asset.id if asset else None,
@@ -759,11 +880,13 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
             performed_by=operator.id,
             overall_condition=condition,
             pass_=condition <= 3,
-            notes=rng.choice([
-                "[sim] Routine inspection. No issues.",
-                "[sim] Sediment level above threshold — schedule cleaning.",
-                "[sim] All measurements within tolerance.",
-            ]),
+            notes=rng.choice(
+                [
+                    "[sim] Routine inspection. No issues.",
+                    "[sim] Sediment level above threshold — schedule cleaning.",
+                    "[sim] All measurements within tolerance.",
+                ]
+            ),
             data={"simulated": True},
             attrs=_label_simulated({}),
         )
@@ -795,16 +918,18 @@ def _attach_sr_to_daily_wo(
             continue
         wo = rng.choice(wos)
         sr.work_order_id = wo.id
-        db.session.add(EntityLink(
-            tenant_id=tenant_id,
-            source_type="service_request",
-            source_id=sr.id,
-            target_type="work_order",
-            target_id=wo.id,
-            kind="caused_by",
-            note=f"[sim] rolled into daily {domain} WO",
-            created_by=intake_user_id,
-        ))
+        db.session.add(
+            EntityLink(
+                tenant_id=tenant_id,
+                source_type="service_request",
+                source_id=sr.id,
+                target_type="work_order",
+                target_id=wo.id,
+                kind="caused_by",
+                note=f"[sim] rolled into daily {domain} WO",
+                created_by=intake_user_id,
+            )
+        )
         return True
     return False
 
@@ -822,23 +947,21 @@ def register(app: Flask) -> None:
     @with_appcontext
     def simulate_year(tenant_slug: str, seed: int, force: bool):
         tenant = db.session.scalar(
-            select(Tenant)
-            .where(Tenant.slug == tenant_slug)
-            .execution_options(skip_tenant_filter=True)
+            select(Tenant).where(Tenant.slug == tenant_slug).execution_options(skip_tenant_filter=True)
         )
         if tenant is None:
             raise click.UsageError(f"Tenant {tenant_slug!r} not found")
 
         already = db.session.scalar(
-            select(WorkOrder.id).where(
+            select(WorkOrder.id)
+            .where(
                 WorkOrder.tenant_id == tenant.id,
                 WorkOrder.attrs["simulated"].astext.cast(db.Boolean) == True,  # noqa: E712
-            ).limit(1)
+            )
+            .limit(1)
         )
         if already and not force:
-            raise click.UsageError(
-                "Tenant already has simulated rows. Re-run with --force to wipe them."
-            )
+            raise click.UsageError("Tenant already has simulated rows. Re-run with --force to wipe them.")
         if force:
             click.echo("Wiping previous simulation…")
             _wipe_simulated(tenant.id)
@@ -846,14 +969,18 @@ def register(app: Flask) -> None:
         click.echo(f"Simulating 12 months of work for {tenant_slug!r} (seed={seed})…")
         today = datetime.now(UTC)
         counts = _simulate(tenant, seed=seed, today=today)
-        click.echo("\n".join([
-            "",
-            "Done.",
-            f"  Daily work orders (per system per workday) : {counts['daily_wo']}",
-            f"    asset stops attached to daily WOs        : {counts.get('wo_asset', 0)}",
-            f"  Service requests                           : {counts['sr']}",
-            f"    of which rolled into a daily WO          : {counts['sr_attached']}",
-            f"  Inspections                                : {counts['inspection']}",
-            f"  Time logs                                  : {counts['time_log']}",
-            f"  Comments                                   : {counts['comment']}",
-        ]))
+        click.echo(
+            "\n".join(
+                [
+                    "",
+                    "Done.",
+                    f"  Daily work orders (per system per workday) : {counts['daily_wo']}",
+                    f"    asset stops attached to daily WOs        : {counts.get('wo_asset', 0)}",
+                    f"  Service requests                           : {counts['sr']}",
+                    f"    of which rolled into a daily WO          : {counts['sr_attached']}",
+                    f"  Inspections                                : {counts['inspection']}",
+                    f"  Time logs                                  : {counts['time_log']}",
+                    f"  Comments                                   : {counts['comment']}",
+                ]
+            )
+        )

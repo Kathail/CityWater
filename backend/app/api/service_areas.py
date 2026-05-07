@@ -30,9 +30,7 @@ from app.schemas.service_area import (
 from app.services.geometry import geojson_to_wkb, wkb_to_geojson
 from app.services.permissions import require_roles
 
-service_areas_bp = Blueprint(
-    "service_areas", __name__, url_prefix="/api/v1/service-areas"
-)
+service_areas_bp = Blueprint("service_areas", __name__, url_prefix="/api/v1/service-areas")
 
 
 def _validate(model, payload):
@@ -79,10 +77,7 @@ def list_service_areas():
     if kind:
         stmt = stmt.where(ServiceArea.kind == kind)
     rows = db.session.scalars(stmt.order_by(ServiceArea.kind, ServiceArea.name)).all()
-    items = [
-        ServiceAreaListItem.model_validate(_payload(a, include_geom=include_geom))
-        for a in rows
-    ]
+    items = [ServiceAreaListItem.model_validate(_payload(a, include_geom=include_geom)) for a in rows]
     return jsonify(ServiceAreaListResponse(items=items).model_dump(mode="json"))
 
 
@@ -161,17 +156,16 @@ def areas_containing_point():
         raise ValidationError("lon and lat query params required (floats)") from e
     pt = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
     rows = db.session.scalars(
-        select(ServiceArea)
-        .where(func.ST_Contains(ServiceArea.geom, pt))
-        .order_by(ServiceArea.kind, ServiceArea.name)
+        select(ServiceArea).where(func.ST_Contains(ServiceArea.geom, pt)).order_by(ServiceArea.kind, ServiceArea.name)
     ).all()
-    return jsonify({
-        "items": [
-            ServiceAreaListItem.model_validate(_payload(a, include_geom=False))
-            .model_dump(mode="json")
-            for a in rows
-        ]
-    })
+    return jsonify(
+        {
+            "items": [
+                ServiceAreaListItem.model_validate(_payload(a, include_geom=False)).model_dump(mode="json")
+                for a in rows
+            ]
+        }
+    )
 
 
 def _serialize_area(a: ServiceArea) -> dict[str, Any]:
@@ -187,12 +181,16 @@ def _serialize_area(a: ServiceArea) -> dict[str, Any]:
 def areas_for_asset(asset_id: int) -> list[dict[str, Any]]:
     """Containing service areas for an asset. ST_Intersects handles
     line/polygon assets that cross an area boundary correctly."""
-    rows = db.session.execute(
-        select(ServiceArea)
-        .join(Asset, func.ST_Intersects(ServiceArea.geom, Asset.geom))
-        .where(Asset.id == asset_id)
-        .order_by(ServiceArea.kind, ServiceArea.name)
-    ).scalars().all()
+    rows = (
+        db.session.execute(
+            select(ServiceArea)
+            .join(Asset, func.ST_Intersects(ServiceArea.geom, Asset.geom))
+            .where(Asset.id == asset_id)
+            .order_by(ServiceArea.kind, ServiceArea.name)
+        )
+        .scalars()
+        .all()
+    )
     return [_serialize_area(a) for a in rows]
 
 

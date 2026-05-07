@@ -30,10 +30,7 @@ def _make_wo(tenant, *, title="WO"):
 
 def _make_sr(tenant, *, sr_number=None):
     g.skip_tenant_filter = True
-    n = (
-        sr_number
-        or f"SR-{datetime.now(UTC).year}-X{int(datetime.now(UTC).timestamp() * 1000) % 999:03d}"
-    )
+    n = sr_number or f"SR-{datetime.now(UTC).year}-X{int(datetime.now(UTC).timestamp() * 1000) % 999:03d}"
     sr = ServiceRequest(
         tenant_id=tenant.id,
         sr_number=n,
@@ -197,9 +194,7 @@ def test_parent_child_wo_links(admin_client, tenant):
             },
         )
         assert resp.status_code == 201
-    listed = admin_client.get(
-        f"/api/v1/links?entity_type=work_order&entity_id={parent.id}"
-    ).get_json()
+    listed = admin_client.get(f"/api/v1/links?entity_type=work_order&entity_id={parent.id}").get_json()
     assert len(listed["items"]) == 2
     assert all(i["kind"] == "parent_of" for i in listed["items"])
 

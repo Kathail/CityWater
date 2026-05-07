@@ -78,9 +78,7 @@ def install(app: Flask) -> None:
         resp.headers.setdefault("Permissions-Policy", PERMISSIONS_POLICY)
         resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         resp.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
-        if app.config.get("SETTINGS") and (
-            app.config["SETTINGS"].environment == "production" or _is_secure()
-        ):
+        if app.config.get("SETTINGS") and (app.config["SETTINGS"].environment == "production" or _is_secure()):
             # 1 year HSTS, no preload by default — operator opts in.
             resp.headers.setdefault(
                 "Strict-Transport-Security",

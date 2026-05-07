@@ -92,9 +92,7 @@ def _respond(result: ReportResult, slug: str) -> Response:
     )
 
 
-def _route(
-    name: str, slug: str, runner: Callable[..., ReportResult], **kwarg_names: str
-) -> Callable[[], Response]:
+def _route(name: str, slug: str, runner: Callable[..., ReportResult], **kwarg_names: str) -> Callable[[], Response]:
     """Build a Flask view that maps query string args to the runner kwargs."""
 
     @login_required
@@ -122,9 +120,7 @@ def list_reports() -> Response:
             {
                 "slug": "break-history",
                 "title": "Main break history",
-                "description": (
-                    "Reactive WOs categorized as main break, with the asset's class and material."
-                ),
+                "description": ("Reactive WOs categorized as main break, with the asset's class and material."),
                 "filters": [
                     {"name": "from", "type": "date"},
                     {"name": "to", "type": "date"},
@@ -153,9 +149,7 @@ def list_reports() -> Response:
             {
                 "slug": "age-distribution",
                 "title": "Asset age distribution",
-                "description": (
-                    "Asset counts bucketed by install age (0-10y, 10-25y, 25-50y, 50+y, unknown)."
-                ),
+                "description": ("Asset counts bucketed by install age (0-10y, 10-25y, 25-50y, 50+y, unknown)."),
                 "filters": [{"name": "domain", "type": "domain"}],
             },
             {

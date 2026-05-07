@@ -21,9 +21,7 @@ def _payload(c: Crew) -> dict:
 @crews_bp.get("")
 @login_required
 def list_crews():
-    items = db.session.scalars(
-        select(Crew).where(Crew.is_active.is_(True)).order_by(Crew.name)
-    ).all()
+    items = db.session.scalars(select(Crew).where(Crew.is_active.is_(True)).order_by(Crew.name)).all()
     return jsonify([_payload(c) for c in items])
 
 

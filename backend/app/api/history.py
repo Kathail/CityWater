@@ -72,8 +72,7 @@ def list_history() -> Any:
                     | (AuditLog.after["source"].astext == related_target)
                     | (AuditLog.after["target"].astext == related_target)
                 ),
-                (AuditLog.entity_type == "Comment")
-                & (AuditLog.after["target"].astext == related_target),
+                (AuditLog.entity_type == "Comment") & (AuditLog.after["target"].astext == related_target),
             ),
         )
         .order_by(AuditLog.occurred_at.desc())
@@ -90,9 +89,7 @@ def list_history() -> Any:
     items = [
         {
             "id": r.id,
-            "occurred_at": (
-                r.occurred_at.isoformat() if isinstance(r.occurred_at, datetime) else r.occurred_at
-            ),
+            "occurred_at": (r.occurred_at.isoformat() if isinstance(r.occurred_at, datetime) else r.occurred_at),
             "actor": user_names.get(r.user_id) if r.user_id else None,
             "actor_id": r.user_id,
             "action": r.action,

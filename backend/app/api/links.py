@@ -15,15 +15,14 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_, select
 
-from app.errors import ConflictError, NotFoundError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import ConflictError, NotFoundError, ValidationError
 from app.extensions import db
 from app.models import EntityLink, Inspection, ServiceRequest, WorkOrder
 from app.schemas.links import LinkCreate, LinkListResponse, LinkRead
 from app.services.audit import emit_event
 
 links_bp = Blueprint("links", __name__, url_prefix="/api/v1/links")
-
 
 
 def _verify_entity(kind: str, entity_id: int) -> str:
@@ -106,11 +105,7 @@ def list_links():
         .order_by(EntityLink.created_at.desc())
     )
     rows = db.session.scalars(stmt).all()
-    return jsonify(
-        LinkListResponse(items=[LinkRead.model_validate(_payload(r)) for r in rows]).model_dump(
-            mode="json"
-        )
-    )
+    return jsonify(LinkListResponse(items=[LinkRead.model_validate(_payload(r)) for r in rows]).model_dump(mode="json"))
 
 
 @links_bp.post("")

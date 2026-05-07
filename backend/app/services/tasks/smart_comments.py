@@ -48,7 +48,7 @@ def _format_value(value: Any) -> str:
         # meaningful decimals (0.05 -> 0.05).
         if value.is_integer():
             return str(int(value))
-        return ("%g" % value)
+        return f"{value:g}"
     return str(value)
 
 

@@ -56,16 +56,12 @@ class WorkOrderAsset(Base, TenantScopedMixin):
     # column was denormalised onto this table in migration 0029 so the
     # listener has something to filter by; the mixin makes the listener
     # actually apply.
-    role: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="affected", server_default="affected"
-    )
+    role: Mapped[str] = mapped_column(String(32), nullable=False, default="affected", server_default="affected")
     sequence: Mapped[int | None] = mapped_column(Integer, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completion_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

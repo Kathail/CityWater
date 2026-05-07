@@ -18,8 +18,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from app.errors import ConflictError, NotFoundError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import ConflictError, NotFoundError
 from app.extensions import db
 from app.models import TaskDefinition
 from app.schemas.task_definition import (
@@ -38,7 +38,6 @@ from app.services.tasks.complete import is_complete
 from app.services.tasks.match import find_matching_task
 
 task_definitions_bp = Blueprint("task_definitions", __name__, url_prefix="/api/v1/task-definitions")
-
 
 
 def _read_payload(td: TaskDefinition) -> dict[str, Any]:
@@ -75,9 +74,7 @@ def list_task_definitions():
     stmt = stmt.order_by(TaskDefinition.code, TaskDefinition.version.desc())
     rows = db.session.scalars(stmt).all()
     return jsonify(
-        TaskDefinitionListResponse(
-            items=[TaskDefinitionBrief.model_validate(r) for r in rows]
-        ).model_dump(mode="json")
+        TaskDefinitionListResponse(items=[TaskDefinitionBrief.model_validate(r) for r in rows]).model_dump(mode="json")
     )
 
 

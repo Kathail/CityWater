@@ -57,9 +57,7 @@ class Inspection(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Audit
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=False), primary_key=True)
     inspection_number: Mapped[str] = mapped_column(String(32), nullable=False)
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
-    asset_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("asset.id", ondelete="SET NULL"), nullable=True
-    )
+    asset_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("asset.id", ondelete="SET NULL"), nullable=True)
     work_order_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("work_order.id", ondelete="SET NULL"), nullable=True
     )
@@ -73,20 +71,14 @@ class Inspection(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, Audit
     overall_condition: Mapped[int | None] = mapped_column(Integer, nullable=True)
     pass_: Mapped[bool | None] = mapped_column("pass", Boolean, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    data: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
-    attrs: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    attrs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     task_definition_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("task_definition.id", ondelete="SET NULL"),
         nullable=True,
     )
-    task_data: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    task_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
 
     asset_obj: Mapped[Asset | None] = relationship(  # type: ignore[name-defined]  # noqa: F821
         "Asset", foreign_keys=[asset_id], lazy="joined"

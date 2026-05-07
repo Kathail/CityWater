@@ -37,9 +37,7 @@ class Invitation(Base, TenantScopedMixin, TimestampMixin, AuditableMixin):
     invited_by: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True
     )
-    role_codes: Mapped[list[str]] = mapped_column(
-        ARRAY(String(32)), nullable=False, default=list, server_default="{}"
-    )
+    role_codes: Mapped[list[str]] = mapped_column(ARRAY(String(32)), nullable=False, default=list, server_default="{}")
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

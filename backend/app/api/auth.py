@@ -7,8 +7,8 @@ from flask import Blueprint, current_app, g, jsonify, request
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import select
 
-from app.errors import AuthError, ConflictError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import AuthError, ConflictError
 from app.extensions import csrf, db, limiter
 from app.models import Role, Tenant, User, UserRole
 from app.schemas.auth import (
@@ -33,7 +33,6 @@ DEFAULT_ROLES: list[tuple[str, str]] = [
     ("readonly", "Read only"),
     ("intake", "Service intake"),
 ]
-
 
 
 def _user_payload(user: User) -> dict:

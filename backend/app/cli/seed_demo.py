@@ -86,9 +86,7 @@ def _make_asset(
     geom: dict,
     **fields,
 ) -> Asset:
-    asset_uid = fields.pop("asset_uid", None) or next_asset_uid(
-        tenant_id=tenant_id, class_code=class_code
-    )
+    asset_uid = fields.pop("asset_uid", None) or next_asset_uid(tenant_id=tenant_id, class_code=class_code)
     asset = Asset(
         tenant_id=tenant_id,
         asset_uid=asset_uid,
@@ -114,29 +112,21 @@ def _wipe_demo() -> None:
     db.session.execute(Inspection.__table__.delete().where(Inspection.tenant_id == tenant_id))
     db.session.execute(
         WorkOrderTask.__table__.delete().where(
-            WorkOrderTask.work_order_id.in_(
-                select(WorkOrder.id).where(WorkOrder.tenant_id == tenant_id)
-            )
+            WorkOrderTask.work_order_id.in_(select(WorkOrder.id).where(WorkOrder.tenant_id == tenant_id))
         )
     )
     db.session.execute(
         WorkOrderTimeLog.__table__.delete().where(
-            WorkOrderTimeLog.work_order_id.in_(
-                select(WorkOrder.id).where(WorkOrder.tenant_id == tenant_id)
-            )
+            WorkOrderTimeLog.work_order_id.in_(select(WorkOrder.id).where(WorkOrder.tenant_id == tenant_id))
         )
     )
     db.session.execute(
         WorkOrderMaterial.__table__.delete().where(
-            WorkOrderMaterial.work_order_id.in_(
-                select(WorkOrder.id).where(WorkOrder.tenant_id == tenant_id)
-            )
+            WorkOrderMaterial.work_order_id.in_(select(WorkOrder.id).where(WorkOrder.tenant_id == tenant_id))
         )
     )
     db.session.execute(WorkOrder.__table__.delete().where(WorkOrder.tenant_id == tenant_id))
-    db.session.execute(
-        ServiceRequest.__table__.delete().where(ServiceRequest.tenant_id == tenant_id)
-    )
+    db.session.execute(ServiceRequest.__table__.delete().where(ServiceRequest.tenant_id == tenant_id))
     # New in S11+: invitations, entity_links, schedules, task_definitions,
     # comments. All FK→tenant.
     from app.models import (
@@ -152,19 +142,13 @@ def _wipe_demo() -> None:
     db.session.execute(Invitation.__table__.delete().where(Invitation.tenant_id == tenant_id))
     db.session.execute(EntityLink.__table__.delete().where(EntityLink.tenant_id == tenant_id))
     db.session.execute(Schedule.__table__.delete().where(Schedule.tenant_id == tenant_id))
-    db.session.execute(
-        TaskDefinition.__table__.delete().where(TaskDefinition.tenant_id == tenant_id)
-    )
-    db.session.execute(
-        ServiceArea.__table__.delete().where(ServiceArea.tenant_id == tenant_id)
-    )
+    db.session.execute(TaskDefinition.__table__.delete().where(TaskDefinition.tenant_id == tenant_id))
+    db.session.execute(ServiceArea.__table__.delete().where(ServiceArea.tenant_id == tenant_id))
     db.session.execute(WoTemplate.__table__.delete().where(WoTemplate.tenant_id == tenant_id))
     db.session.execute(Asset.__table__.delete().where(Asset.tenant_id == tenant_id))
     db.session.execute(Crew.__table__.delete().where(Crew.tenant_id == tenant_id))
     db.session.execute(
-        UserRole.__table__.delete().where(
-            UserRole.user_id.in_(select(User.id).where(User.tenant_id == tenant_id))
-        )
+        UserRole.__table__.delete().where(UserRole.user_id.in_(select(User.id).where(User.tenant_id == tenant_id)))
     )
     db.session.execute(User.__table__.delete().where(User.tenant_id == tenant_id))
     db.session.execute(Role.__table__.delete().where(Role.tenant_id == tenant_id))
@@ -233,32 +217,32 @@ def _seed() -> None:
         ("WAT_MTR", "water", "brass", 25),
         ("WAT_PMP", "water", None, None),
         ("WAT_PRV", "water", None, None),
-        ("SAN_MH",  "sewer", "concrete", None),
+        ("SAN_MH", "sewer", "concrete", None),
         ("SAN_LFT", "sewer", None, None),
-        ("SAN_CO",  "sewer", "PVC", 100),
-        ("SAN_GT",  "sewer", "concrete", None),
-        ("STM_CB",  "storm", "concrete", None),
-        ("STM_MH",  "storm", "concrete", None),
+        ("SAN_CO", "sewer", "PVC", 100),
+        ("SAN_GT", "sewer", "concrete", None),
+        ("STM_CB", "storm", "concrete", None),
+        ("STM_MH", "storm", "concrete", None),
         ("STM_OUT", "storm", "concrete", None),
         ("STM_INL", "storm", "concrete", None),
     ]
     LINE_CLASSES = [
-        ("WAT_MAIN", "water", "PVC",        300),
-        ("WAT_SVC",  "water", "copper",     25),
-        ("SAN_MAIN", "sewer", "PVC",        250),
-        ("SAN_FM",   "sewer", "ductile iron", 200),
-        ("SAN_LAT",  "sewer", "PVC",        100),
-        ("STM_MAIN", "storm", "HDPE",       600),
-        ("STM_CULV", "storm", "HDPE",       900),
-        ("STM_DTCH", "storm", None,         None),
+        ("WAT_MAIN", "water", "PVC", 300),
+        ("WAT_SVC", "water", "copper", 25),
+        ("SAN_MAIN", "sewer", "PVC", 250),
+        ("SAN_FM", "sewer", "ductile iron", 200),
+        ("SAN_LAT", "sewer", "PVC", 100),
+        ("STM_MAIN", "storm", "HDPE", 600),
+        ("STM_CULV", "storm", "HDPE", 900),
+        ("STM_DTCH", "storm", None, None),
     ]
     POLYGON_CLASSES = [
         ("WAT_RES", "water", "reinforced concrete"),
         ("STM_BMP", "storm", "earth"),
     ]
     TARGET_PER_CLASS = 50
-    BBOX_W = 0.04   # ~4 km E-W
-    BBOX_H = 0.03   # ~3 km N-S
+    BBOX_W = 0.04  # ~4 km E-W
+    BBOX_H = 0.03  # ~3 km N-S
 
     def _rand_point() -> tuple[float, float]:
         return (
@@ -847,13 +831,15 @@ def _seed() -> None:
         return {"type": "MultiPolygon", "coordinates": [coords]}
 
     def _box(west: float, south: float, east: float, north: float) -> list[list[list[float]]]:
-        return [[
-            [west, south],
-            [east, south],
-            [east, north],
-            [west, north],
-            [west, south],
-        ]]
+        return [
+            [
+                [west, south],
+                [east, south],
+                [east, north],
+                [west, north],
+                [west, south],
+            ]
+        ]
 
     areas = [
         ServiceArea(
@@ -920,9 +906,7 @@ def register(app: Flask) -> None:
     @with_appcontext
     def seed_demo(force: bool):
         existing = db.session.scalar(
-            select(Tenant)
-            .where(Tenant.slug == DEMO_SLUG)
-            .execution_options(skip_tenant_filter=True)
+            select(Tenant).where(Tenant.slug == DEMO_SLUG).execution_options(skip_tenant_filter=True)
         )
         if existing and not force:
             click.echo(f"Demo tenant {DEMO_SLUG!r} already exists. Re-run with --force to wipe.")

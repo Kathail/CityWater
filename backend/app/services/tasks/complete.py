@@ -18,9 +18,7 @@ from app.models import TaskDefinition
 from app.services.expr import safe_evaluate
 
 
-def is_complete(
-    task: TaskDefinition, task_data: dict, entity_ctx: dict | None = None
-) -> tuple[bool, list[str]]:
+def is_complete(task: TaskDefinition, task_data: dict, entity_ctx: dict | None = None) -> tuple[bool, list[str]]:
     """Return (passed, list_of_unmet_requirements).
 
     `entity_ctx` adds non-task-data fields (e.g. `category`, `priority`)

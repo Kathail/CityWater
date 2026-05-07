@@ -114,12 +114,8 @@ def test_unknown_class_code_422(admin_client):
 
 
 def test_uid_auto_increments_within_class(admin_client):
-    a = admin_client.post(
-        "/api/v1/assets", json={"class_code": "WAT_HYD", "geometry": POINT}
-    ).get_json()
-    b = admin_client.post(
-        "/api/v1/assets", json={"class_code": "WAT_HYD", "geometry": POINT}
-    ).get_json()
+    a = admin_client.post("/api/v1/assets", json={"class_code": "WAT_HYD", "geometry": POINT}).get_json()
+    b = admin_client.post("/api/v1/assets", json={"class_code": "WAT_HYD", "geometry": POINT}).get_json()
     assert a["asset_uid"] == "HYD-00001"
     assert b["asset_uid"] == "HYD-00002"
 
@@ -254,9 +250,7 @@ def test_tech_can_view(tech_client, tenant):
 
 
 def test_supervisor_can_create(supervisor_client):
-    resp = supervisor_client.post(
-        "/api/v1/assets", json={"class_code": "WAT_HYD", "geometry": POINT}
-    )
+    resp = supervisor_client.post("/api/v1/assets", json={"class_code": "WAT_HYD", "geometry": POINT})
     assert resp.status_code == 201
 
 

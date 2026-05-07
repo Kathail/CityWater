@@ -89,9 +89,7 @@ def make_user(
     _db.session.add(user)
     _db.session.flush()
     if role_codes:
-        roles = _db.session.scalars(
-            select(Role).where(Role.tenant_id == tenant.id, Role.code.in_(role_codes))
-        ).all()
+        roles = _db.session.scalars(select(Role).where(Role.tenant_id == tenant.id, Role.code.in_(role_codes))).all()
         for r in roles:
             _db.session.add(UserRole(user_id=user.id, role_id=r.id))
         _db.session.flush()

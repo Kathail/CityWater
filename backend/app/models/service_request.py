@@ -72,12 +72,8 @@ class ServiceRequest(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, A
     sr_number: Mapped[str] = mapped_column(String(32), nullable=False)
     category: Mapped[str] = mapped_column(String(32), nullable=False)
     domain: Mapped[str] = mapped_column(String(16), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="new", server_default="new"
-    )
-    priority: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="normal", server_default="normal"
-    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="new", server_default="new")
+    priority: Mapped[str] = mapped_column(String(16), nullable=False, default="normal", server_default="normal")
     reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     caller_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     caller_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -87,12 +83,8 @@ class ServiceRequest(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, A
     # OR the operator-typed `address_override`.
     reported_address: Mapped[str | None] = mapped_column(Text, nullable=True)
     address_override: Mapped[str | None] = mapped_column(Text, nullable=True)
-    location: Mapped[Any | None] = mapped_column(
-        Geometry(geometry_type="POINT", srid=4326), nullable=True
-    )
-    asset_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("asset.id", ondelete="SET NULL"), nullable=True
-    )
+    location: Mapped[Any | None] = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=True)
+    asset_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("asset.id", ondelete="SET NULL"), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     intake_user_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True
@@ -108,17 +100,13 @@ class ServiceRequest(Base, TenantScopedMixin, TimestampMixin, SoftDeleteMixin, A
         ForeignKey("service_request.id", ondelete="SET NULL"),
         nullable=True,
     )
-    attrs: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    attrs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     task_definition_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("task_definition.id", ondelete="SET NULL"),
         nullable=True,
     )
-    task_data: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    task_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
 
     asset_obj: Mapped[Asset | None] = relationship(  # type: ignore[name-defined]  # noqa: F821
         "Asset", foreign_keys=[asset_id], lazy="joined"

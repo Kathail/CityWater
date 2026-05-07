@@ -34,6 +34,7 @@ class Settings(BaseSettings):
         if self.railway_git_commit_sha:
             return self.railway_git_commit_sha[:12]
         return self.git_sha
+
     log_level: str = Field(default="INFO")
 
     @field_validator("database_url")

@@ -15,8 +15,7 @@ from flask import g
 
 from app.extensions import db
 from app.models import ServiceRequest, WorkOrder
-
-from tests.conftest import login_client, make_tenant, make_user
+from tests.conftest import make_tenant, make_user
 
 
 @pytest.fixture

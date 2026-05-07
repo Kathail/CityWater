@@ -57,9 +57,7 @@ def _coerce(field: str, raw: Any) -> Any:
 def _existing_by_uid(asset_uid: str | None) -> Asset | None:
     if not asset_uid:
         return None
-    return db.session.scalar(
-        select(Asset).where(Asset.asset_uid == asset_uid).execution_options(include_deleted=True)
-    )
+    return db.session.scalar(select(Asset).where(Asset.asset_uid == asset_uid).execution_options(include_deleted=True))
 
 
 def _apply_props(asset: Asset, source: dict[str, Any]) -> None:
@@ -89,10 +87,7 @@ def _process(
     if geom_dict.get("type") != asset_class.geometry_type:
         return "failed", {
             "code": "geometry_type_mismatch",
-            "message": (
-                f"class {class_code} requires {asset_class.geometry_type}, "
-                f"got {geom_dict.get('type')}"
-            ),
+            "message": (f"class {class_code} requires {asset_class.geometry_type}, got {geom_dict.get('type')}"),
         }
 
     attrs = props.get("attrs") or {}
@@ -145,9 +140,7 @@ def _finalize(summary: dict[str, int], dry_run: bool, format_label: str) -> None
     db.session.commit()
 
 
-def import_csv(
-    stream: BinaryIO, *, on_conflict: OnConflict = "skip", dry_run: bool = False
-) -> dict:
+def import_csv(stream: BinaryIO, *, on_conflict: OnConflict = "skip", dry_run: bool = False) -> dict:
     """Import CSV. Point classes only — Lines/Polygons rejected per row."""
     text = io.TextIOWrapper(stream, encoding="utf-8-sig", newline="")
     reader = csv.DictReader(text)
@@ -173,8 +166,7 @@ def import_csv(
                     "row": row_num,
                     "code": "geometry_type_unsupported_in_csv",
                     "message": (
-                        f"class {class_code} has geometry type "
-                        f"{asset_class.geometry_type}; CSV import is Point-only"
+                        f"class {class_code} has geometry type {asset_class.geometry_type}; CSV import is Point-only"
                     ),
                     "raw": row,
                 }
@@ -237,9 +229,7 @@ def import_csv(
     return {"summary": summary, "errors": errors}
 
 
-def import_geojson(
-    stream: BinaryIO, *, on_conflict: OnConflict = "skip", dry_run: bool = False
-) -> dict:
+def import_geojson(stream: BinaryIO, *, on_conflict: OnConflict = "skip", dry_run: bool = False) -> dict:
     try:
         data = json.load(stream)
     except json.JSONDecodeError as e:
@@ -258,17 +248,13 @@ def import_geojson(
 
     for row_num, feature in enumerate(features, start=1):
         if not isinstance(feature, dict):
-            errors.append(
-                {"row": row_num, "code": "bad_feature", "message": "feature is not an object"}
-            )
+            errors.append({"row": row_num, "code": "bad_feature", "message": "feature is not an object"})
             summary["failed"] += 1
             continue
 
         geom = feature.get("geometry")
         if not isinstance(geom, dict):
-            errors.append(
-                {"row": row_num, "code": "missing_geometry", "message": "feature missing geometry"}
-            )
+            errors.append({"row": row_num, "code": "missing_geometry", "message": "feature missing geometry"})
             summary["failed"] += 1
             continue
 

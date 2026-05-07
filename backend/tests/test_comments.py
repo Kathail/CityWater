@@ -6,15 +6,12 @@ no longer accept arbitrary IDs) and the standard CRUD lifecycle.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 import pytest
 from flask import g
 
 from app.extensions import db
 from app.models import Comment, WorkOrder
-
-from tests.conftest import login_client, make_tenant, make_user
+from tests.conftest import make_tenant, make_user
 
 
 @pytest.fixture

@@ -84,9 +84,7 @@ def test_remove_asset(admin_client, tenant):
         f"/api/v1/work-orders/{wo['wo_number']}/assets",
         json={"asset_uids": ["H-D1", "H-D2"]},
     )
-    resp = admin_client.delete(
-        f"/api/v1/work-orders/{wo['wo_number']}/assets/H-D1"
-    )
+    resp = admin_client.delete(f"/api/v1/work-orders/{wo['wo_number']}/assets/H-D1")
     assert resp.status_code == 200
     body = resp.get_json()
     assert [a["asset_uid"] for a in body["assets"]] == ["H-D2"]

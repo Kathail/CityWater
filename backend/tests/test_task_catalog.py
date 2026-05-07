@@ -71,11 +71,7 @@ def test_seed_tasks_doesnt_clobber_existing_discoloured(app, tenant) -> None:
         seed_tasks(db.session, tenant.id)
         db.session.commit()
 
-        td = (
-            db.session.query(TaskDefinition)
-            .filter_by(tenant_id=tenant.id, code="WAT-TASK-DISCOLOURED")
-            .one()
-        )
+        td = db.session.query(TaskDefinition).filter_by(tenant_id=tenant.id, code="WAT-TASK-DISCOLOURED").one()
         # Rich attributes from the original keystone seed are preserved.
         assert td.form, "form was clobbered by re-seed"
         assert td.prefill, "prefill was clobbered by re-seed"

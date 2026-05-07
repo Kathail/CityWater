@@ -5,9 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ServiceAreaKind = Literal[
-    "maintenance", "water_system", "sewer_system", "storm_system"
-]
+ServiceAreaKind = Literal["maintenance", "water_system", "sewer_system", "storm_system"]
 
 
 class ServiceAreaRead(BaseModel):

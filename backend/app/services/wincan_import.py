@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import json
 from typing import Any, BinaryIO
+
 # defusedxml hardens against billion-laughs / external-entity attacks in
 # tenant-uploaded WinCAN XML. Public API matches stdlib xml.etree.
-from defusedxml import ElementTree as ET
+from defusedxml import ElementTree as ET  # noqa: N817 — `ET` is the canonical alias
 
 from app.errors import ValidationError
 
@@ -73,9 +74,7 @@ def _parse_xml(text: str) -> dict[str, Any]:
     obj["upstream_mh"] = _text(survey, ("upstreammh", "upstream_mh", "UpstreamMH", "FromMH"))
     obj["downstream_mh"] = _text(survey, ("downstreammh", "downstream_mh", "DownstreamMH", "ToMH"))
     obj["direction"] = (_text(survey, ("direction", "Direction")) or "").strip().lower() or None
-    obj["length_surveyed_m"] = _text(
-        survey, ("lengthsurveyed", "length_surveyed_m", "LengthSurveyed")
-    )
+    obj["length_surveyed_m"] = _text(survey, ("lengthsurveyed", "length_surveyed_m", "LengthSurveyed"))
     obj["length_total_m"] = _text(survey, ("lengthtotal", "length_total_m", "LengthTotal"))
     obj["media_url"] = _text(survey, ("mediaurl", "media_url", "MediaURL"))
 

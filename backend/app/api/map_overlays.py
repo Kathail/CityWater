@@ -27,11 +27,13 @@ SR_ACTIVE_STATUSES = ("new", "triaged", "dispatched")
 @map_overlays_bp.get("/overlays")
 @login_required
 def get_overlays():
-    return jsonify({
-        "open_wos": _wo_features(),
-        "active_srs": _sr_features(),
-        "service_areas": _service_area_features(),
-    })
+    return jsonify(
+        {
+            "open_wos": _wo_features(),
+            "active_srs": _sr_features(),
+            "service_areas": _service_area_features(),
+        }
+    )
 
 
 def _service_area_features() -> dict[str, Any]:
@@ -52,18 +54,20 @@ def _service_area_features() -> dict[str, Any]:
     for r in rows:
         if not r.geom_json:
             continue
-        features.append({
-            "type": "Feature",
-            "geometry": json.loads(r.geom_json),
-            "properties": {
-                "kind": "service_area",
-                "id": r.id,
-                "code": r.code,
-                "name": r.name,
-                "area_kind": r.kind,
-                "color": r.color,
-            },
-        })
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": json.loads(r.geom_json),
+                "properties": {
+                    "kind": "service_area",
+                    "id": r.id,
+                    "code": r.code,
+                    "name": r.name,
+                    "area_kind": r.kind,
+                    "color": r.color,
+                },
+            }
+        )
     return {"type": "FeatureCollection", "features": features}
 
 
@@ -99,21 +103,23 @@ def _wo_features() -> dict[str, Any]:
         import json
 
         geom = json.loads(r.geom_json)
-        features.append({
-            "type": "Feature",
-            "geometry": geom,
-            "properties": {
-                "kind": "work_order",
-                "wo_number": r.wo_number,
-                "title": r.title,
-                "category": r.category,
-                "priority": r.priority,
-                "status": r.status,
-                "scheduled_for": r.scheduled_for.isoformat() if r.scheduled_for else None,
-                "due_by": r.due_by.isoformat() if r.due_by else None,
-                "asset_uid": r.asset_uid,
-            },
-        })
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": geom,
+                "properties": {
+                    "kind": "work_order",
+                    "wo_number": r.wo_number,
+                    "title": r.title,
+                    "category": r.category,
+                    "priority": r.priority,
+                    "status": r.status,
+                    "scheduled_for": r.scheduled_for.isoformat() if r.scheduled_for else None,
+                    "due_by": r.due_by.isoformat() if r.due_by else None,
+                    "asset_uid": r.asset_uid,
+                },
+            }
+        )
     return {"type": "FeatureCollection", "features": features}
 
 
@@ -134,9 +140,7 @@ def _sr_features() -> dict[str, Any]:
         )
         .outerjoin(Asset, Asset.id == ServiceRequest.asset_id)
         .where(ServiceRequest.status.in_(SR_ACTIVE_STATUSES))
-        .where(
-            case((ServiceRequest.location.is_not(None), True), else_=Asset.id.is_not(None))
-        )
+        .where(case((ServiceRequest.location.is_not(None), True), else_=Asset.id.is_not(None)))
     ).all()
 
     import json
@@ -146,19 +150,21 @@ def _sr_features() -> dict[str, Any]:
         if not r.geom_json:
             continue
         geom = json.loads(r.geom_json)
-        features.append({
-            "type": "Feature",
-            "geometry": geom,
-            "properties": {
-                "kind": "service_request",
-                "sr_number": r.sr_number,
-                "category": r.category,
-                "domain": r.domain,
-                "priority": r.priority,
-                "status": r.status,
-                "reported_at": r.reported_at.isoformat() if r.reported_at else None,
-                "reported_address": r.reported_address,
-                "asset_uid": r.asset_uid,
-            },
-        })
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": geom,
+                "properties": {
+                    "kind": "service_request",
+                    "sr_number": r.sr_number,
+                    "category": r.category,
+                    "domain": r.domain,
+                    "priority": r.priority,
+                    "status": r.status,
+                    "reported_at": r.reported_at.isoformat() if r.reported_at else None,
+                    "reported_address": r.reported_address,
+                    "asset_uid": r.asset_uid,
+                },
+            }
+        )
     return {"type": "FeatureCollection", "features": features}

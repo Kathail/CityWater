@@ -9,8 +9,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from app.errors import ConflictError, NotFoundError, ValidationError
 from app.api import validate_request as _validate
+from app.errors import ConflictError, NotFoundError, ValidationError
 from app.extensions import db
 from app.models import (
     Asset,
@@ -22,7 +22,6 @@ from app.models import (
     WorkOrderTimeLog,
     WoTemplate,
 )
-from app.models.work_order_asset import WO_ASSET_ROLES
 from app.schemas.work_order import (
     AttachmentRead,
     MaterialCreate,
@@ -56,30 +55,36 @@ _ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024  # per-file
 # `kind=photo` is intentionally narrower than the wider image/* family —
 # we only want camera-roll formats, not SVG (XSS risk in browsers that
 # render it inline) or TIFF (no real use case for our flows).
-_PHOTO_MIME_ALLOW = frozenset({
-    "image/jpeg",
-    "image/png",
-    "image/heic",
-    "image/heif",
-    "image/webp",
-})
-_DOC_MIME_ALLOW = frozenset({
-    "application/pdf",
-    # Allow the same image types under "doc" (operators sometimes file
-    # screenshots or scans as documentation).
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "text/plain",
-    "text/csv",
-})
-_SKETCH_MIME_ALLOW = frozenset({
-    "image/jpeg",
-    "image/png",
-    "image/svg+xml",  # operator-drawn sketches (rendered as download, not inline)
-})
+_PHOTO_MIME_ALLOW = frozenset(
+    {
+        "image/jpeg",
+        "image/png",
+        "image/heic",
+        "image/heif",
+        "image/webp",
+    }
+)
+_DOC_MIME_ALLOW = frozenset(
+    {
+        "application/pdf",
+        # Allow the same image types under "doc" (operators sometimes file
+        # screenshots or scans as documentation).
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/plain",
+        "text/csv",
+    }
+)
+_SKETCH_MIME_ALLOW = frozenset(
+    {
+        "image/jpeg",
+        "image/png",
+        "image/svg+xml",  # operator-drawn sketches (rendered as download, not inline)
+    }
+)
 
 _MIME_ALLOWLISTS: dict[str, frozenset[str]] = {
     "photo": _PHOTO_MIME_ALLOW,
@@ -114,7 +119,6 @@ def _sniff_mime(blob: bytes) -> str | None:
         if blob.startswith(prefix):
             return mime
     return None
-
 
 
 def _user_roles() -> set[str]:
@@ -204,9 +208,7 @@ def _wo_payload(wo: WorkOrder) -> dict[str, Any]:
     if wo.task_definition_id is not None:
         from app.models import TaskDefinition
 
-        td = db.session.scalar(
-            select(TaskDefinition).where(TaskDefinition.id == wo.task_definition_id)
-        )
+        td = db.session.scalar(select(TaskDefinition).where(TaskDefinition.id == wo.task_definition_id))
         task_definition_code = td.code if td else None
     payload = {
         "id": wo.id,
@@ -310,11 +312,7 @@ def list_work_orders():
         else:
             stmt = stmt.where(
                 (WorkOrder.asset_id == target.id)
-                | WorkOrder.id.in_(
-                    select(WorkOrderAsset.work_order_id).where(
-                        WorkOrderAsset.asset_id == target.id
-                    )
-                )
+                | WorkOrder.id.in_(select(WorkOrderAsset.work_order_id).where(WorkOrderAsset.asset_id == target.id))
             )
 
     q = (request.args.get("q") or "").strip()
@@ -358,9 +356,7 @@ def create_work_order():
     if data.from_template_id:
         template = db.session.get(WoTemplate, data.from_template_id)
         if not template:
-            raise ValidationError(
-                f"template {data.from_template_id} not found", code="unknown_template"
-            )
+            raise ValidationError(f"template {data.from_template_id} not found", code="unknown_template")
 
     category = data.category
     priority = data.priority
@@ -435,9 +431,7 @@ def create_work_order():
         db.session.refresh(wo)
         return jsonify(_wo_payload(wo)), 201
 
-    raise ConflictError(
-        "could not generate unique wo_number after retries", code="wo_number_collision"
-    ) from last_error
+    raise ConflictError("could not generate unique wo_number after retries", code="wo_number_collision") from last_error
 
 
 @work_orders_bp.get("/<string:wo_number>")
@@ -528,9 +522,7 @@ def add_wo_assets(wo_number: str):
     wo = _get_wo(wo_number)
 
     # Resolve UIDs → assets in one query.
-    assets = db.session.execute(
-        select(Asset).where(Asset.asset_uid.in_(data.asset_uids))
-    ).scalars().all()
+    assets = db.session.execute(select(Asset).where(Asset.asset_uid.in_(data.asset_uids))).scalars().all()
     found_uids = {a.asset_uid: a for a in assets}
     missing = [uid for uid in data.asset_uids if uid not in found_uids]
     if missing:
@@ -544,9 +536,7 @@ def add_wo_assets(wo_number: str):
     # `primary` already exists so we can promote the first new stop
     # to primary on a WO that doesn't have one yet (and keep
     # wo.asset_id in sync — see WO-P0-3).
-    existing_rows = db.session.scalars(
-        select(WorkOrderAsset).where(WorkOrderAsset.work_order_id == wo.id)
-    ).all()
+    existing_rows = db.session.scalars(select(WorkOrderAsset).where(WorkOrderAsset.work_order_id == wo.id)).all()
     existing_ids = {r.asset_id for r in existing_rows}
     has_primary = any(r.role == "primary" for r in existing_rows)
     next_seq = max((r.sequence or 0) for r in existing_rows) if existing_rows else 0
@@ -564,14 +554,16 @@ def add_wo_assets(wo_number: str):
         if not has_primary and promoted_to_primary is None:
             role = "primary"
             promoted_to_primary = a.id
-        db.session.add(WorkOrderAsset(
-            work_order_id=wo.id,
-            asset_id=a.id,
-            tenant_id=wo.tenant_id,
-            role=role,
-            sequence=next_seq,
-            created_at=datetime.now(UTC),
-        ))
+        db.session.add(
+            WorkOrderAsset(
+                work_order_id=wo.id,
+                asset_id=a.id,
+                tenant_id=wo.tenant_id,
+                role=role,
+                sequence=next_seq,
+                created_at=datetime.now(UTC),
+            )
+        )
         added += 1
 
     if promoted_to_primary is not None and wo.asset_id is None:
@@ -676,11 +668,7 @@ def update_wo_asset(wo_number: str, asset_uid: str):
 def add_task(wo_number: str):
     data = _validate(TaskCreate, request.get_json(silent=True) or {})
     wo = _get_wo(wo_number)
-    next_seq = (
-        max((t.sequence for t in wo.tasks), default=-1) + 1
-        if data.sequence is None
-        else data.sequence
-    )
+    next_seq = max((t.sequence for t in wo.tasks), default=-1) + 1 if data.sequence is None else data.sequence
     task = WorkOrderTask(
         work_order_id=wo.id,
         sequence=next_seq,
@@ -796,21 +784,22 @@ def upload_attachment_endpoint(wo_number: str):
     allow = _MIME_ALLOWLISTS[kind]
     if client_mime not in allow:
         raise ValidationError(
-            f"content_type {client_mime!r} not allowed for kind={kind!r} "
-            f"(allowed: {sorted(allow)})",
+            f"content_type {client_mime!r} not allowed for kind={kind!r} (allowed: {sorted(allow)})",
             code="bad_content_type",
         )
     sniffed_mime = _sniff_mime(blob)
-    if sniffed_mime is not None and sniffed_mime != client_mime:
-        # Special-case zip-wrapped office docs: sniff returns
-        # application/zip, client says docx/xlsx — both are accurate
-        # at different layers. Allow the more specific MIME through.
-        if not (sniffed_mime == "application/zip" and client_mime in _DOC_MIME_ALLOW):
-            raise ValidationError(
-                f"file contents (sniffed as {sniffed_mime}) don't match "
-                f"declared content_type {client_mime}",
-                code="mime_mismatch",
-            )
+    # Special-case zip-wrapped office docs: sniff returns
+    # application/zip, client says docx/xlsx — both are accurate
+    # at different layers. Allow the more specific MIME through.
+    if (
+        sniffed_mime is not None
+        and sniffed_mime != client_mime
+        and not (sniffed_mime == "application/zip" and client_mime in _DOC_MIME_ALLOW)
+    ):
+        raise ValidationError(
+            f"file contents (sniffed as {sniffed_mime}) don't match declared content_type {client_mime}",
+            code="mime_mismatch",
+        )
     content_type = client_mime
 
     coords = None

@@ -33,12 +33,8 @@ class AssetClass(Base, TimestampMixin):
     domain: Mapped[str] = mapped_column(String(16), nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     geometry_type: Mapped[str] = mapped_column(String(16), nullable=False)
-    attribute_schema: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    attribute_schema: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     default_criticality: Mapped[int | None] = mapped_column(Integer, nullable=True)
     icon: Mapped[str | None] = mapped_column(String, nullable=True)
     color: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default="true"
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
