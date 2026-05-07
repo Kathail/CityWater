@@ -23,16 +23,22 @@ const KINDS: { value: InspectionKind; label: string }[] = [
 
 interface Props {
   onClose: () => void;
+  /** Prefill the form (used when launched via deep-link from another page). */
+  defaults?: {
+    asset_uid?: string;
+    kind?: InspectionKind;
+    work_order_number?: string;
+  };
 }
 
-export function CreateInspectionDialog({ onClose }: Props) {
+export function CreateInspectionDialog({ onClose, defaults }: Props) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
 
-  const [kind, setKind] = useState<InspectionKind>("hydrant_flow");
-  const [assetUid, setAssetUid] = useState("");
-  const [woNumber, setWoNumber] = useState("");
+  const [kind, setKind] = useState<InspectionKind>(defaults?.kind ?? "hydrant_flow");
+  const [assetUid, setAssetUid] = useState(defaults?.asset_uid ?? "");
+  const [woNumber, setWoNumber] = useState(defaults?.work_order_number ?? "");
   const [pass, setPass] = useState<"" | "true" | "false">("");
   const [overallCondition, setOverallCondition] = useState("");
   const [notes, setNotes] = useState("");

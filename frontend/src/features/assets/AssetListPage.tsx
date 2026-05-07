@@ -118,6 +118,7 @@ export function AssetListPage() {
           value={visibleActive}
           sub={`of ${sortedItems.length} shown`}
           tone="success"
+          to="?status=active"
         />
         <SummaryBar.Stat label="Classes on page" value={visibleClasses} />
         <SummaryBar.Stat
@@ -292,13 +293,20 @@ export function AssetListPage() {
                 <td className="px-3 py-2 text-right">
                   <RowActions label={`${a.asset_uid} actions`}>
                     <RowActions.Link to={`./${a.asset_uid}`}>View details</RowActions.Link>
+                    <RowActions.Separator />
+                    <RowActions.Link to={`/${slug}/work-orders?new=1&asset_uid=${a.asset_uid}`}>
+                      Create work order
+                    </RowActions.Link>
+                    <RowActions.Link to={`/${slug}/inspections?new=1&asset_uid=${a.asset_uid}`}>
+                      Create inspection
+                    </RowActions.Link>
+                    <RowActions.Separator />
                     <RowActions.Link to={`/${slug}/work-orders?asset_uid=${a.asset_uid}`}>
                       View work orders
                     </RowActions.Link>
                     <RowActions.Link to={`/${slug}/inspections?asset_uid=${a.asset_uid}`}>
                       View inspections
                     </RowActions.Link>
-                    <RowActions.Separator />
                     <RowActions.Link to={`/${slug}/map?focus=${a.asset_uid}`}>
                       Locate on map
                     </RowActions.Link>

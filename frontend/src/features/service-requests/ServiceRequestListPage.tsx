@@ -295,22 +295,45 @@ export function ServiceRequestListPage() {
                       <RowActions.Link to={`/${slug}/service-requests/${sr.sr_number}`}>
                         View details
                       </RowActions.Link>
-                      {sr.status === "new" && (
-                        <RowActions.Action
-                          onClick={() => update.mutate({ sr: sr.sr_number, status: "triaged" })}
-                        >
-                          Mark triaged
-                        </RowActions.Action>
-                      )}
                       {!["closed", "dispatched", "duplicate"].includes(sr.status) && (
                         <RowActions.Link to={`/${slug}/service-requests/${sr.sr_number}#dispatch`}>
                           Dispatch as WO…
                         </RowActions.Link>
                       )}
+                      {sr.status === "new" && (
+                        <>
+                          <RowActions.Separator />
+                          <RowActions.Action
+                            onClick={() => update.mutate({ sr: sr.sr_number, status: "triaged" })}
+                          >
+                            Mark triaged
+                          </RowActions.Action>
+                        </>
+                      )}
+                      {!["closed", "duplicate"].includes(sr.status) && (
+                        <>
+                          <RowActions.Action
+                            onClick={() => update.mutate({ sr: sr.sr_number, status: "duplicate" })}
+                          >
+                            Mark as duplicate
+                          </RowActions.Action>
+                          <RowActions.Action
+                            onClick={() => {
+                              if (confirm(`Close ${sr.sr_number} without dispatching a WO?`))
+                                update.mutate({ sr: sr.sr_number, status: "closed" });
+                            }}
+                          >
+                            Close without dispatch
+                          </RowActions.Action>
+                        </>
+                      )}
                       {sr.work_order_number && (
-                        <RowActions.Link to={`/${slug}/work-orders/${sr.work_order_number}`}>
-                          View linked WO
-                        </RowActions.Link>
+                        <>
+                          <RowActions.Separator />
+                          <RowActions.Link to={`/${slug}/work-orders/${sr.work_order_number}`}>
+                            View linked WO
+                          </RowActions.Link>
+                        </>
                       )}
                     </RowActions>
                   </td>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/Button";
@@ -7,14 +7,16 @@ import { RowActions } from "../../components/RowActions";
 import { EmptyState } from "../../components/States";
 import { StatusPill, type PillTone } from "../../components/StatusPill";
 import { SummaryBar } from "../../components/SummaryBar";
-import { formatDate } from "../../lib/format";
+import { formatDate, formatRelative } from "../../lib/format";
 import { translateApiError } from "../../lib/translateApiError";
 import { CreateWorkOrderDialog } from "./CreateWorkOrderDialog";
 import { KanbanBoard } from "./KanbanBoard";
 import {
   transitionWorkOrder,
+  type WoCategory,
   type WoPriority,
   type WoStatus,
+  type WoType,
   type WorkOrderListParams,
 } from "./api";
 import { useWorkOrders } from "./hooks";
@@ -55,6 +57,37 @@ export function WorkOrderListPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const { slug } = useParams<{ slug: string }>();
   const queryClient = useQueryClient();
+
+  // Deep-link prefill: another page can navigate here with
+  // ?new=1&asset_uid=HYD-00001&title=Inspect+hydrant... and we'll
+  // auto-open the create dialog with those defaults. The query
+  // params are stripped on dialog close so a refresh doesn't reopen.
+  const newDefaults = useMemo(() => {
+    if (search.get("new") !== "1") return null;
+    return {
+      asset_uid: search.get("asset_uid") || undefined,
+      title: search.get("title") || undefined,
+      category: (search.get("category") as WoCategory) || undefined,
+      priority: (search.get("priority") as WoPriority) || undefined,
+      type: (search.get("type") as WoType) || undefined,
+      description: search.get("description") || undefined,
+    };
+  }, [search]);
+
+  useEffect(() => {
+    if (newDefaults && !createOpen) setCreateOpen(true);
+  }, [newDefaults, createOpen]);
+
+  function handleCloseCreate() {
+    setCreateOpen(false);
+    if (newDefaults) {
+      const next = new URLSearchParams(search);
+      ["new", "asset_uid", "title", "category", "priority", "type", "description"].forEach((k) =>
+        next.delete(k),
+      );
+      setSearch(next, { replace: true });
+    }
+  }
 
   const view = search.get("view") === "kanban" ? "kanban" : "list";
   // Default to Active so supervisors see today's work, not history.
@@ -153,7 +186,9 @@ export function WorkOrderListPage() {
         <SummaryBar.Stat label="Total in dataset" value={woQuery.data?.total ?? 0} tone="muted" />
       </SummaryBar>
 
-      {createOpen && <CreateWorkOrderDialog onClose={() => setCreateOpen(false)} />}
+      {createOpen && (
+        <CreateWorkOrderDialog onClose={handleCloseCreate} defaults={newDefaults ?? undefined} />
+      )}
 
       {view === "list" && (
         <>
@@ -282,7 +317,7 @@ export function WorkOrderListPage() {
                       <td className="px-3 py-2">
                         <StatusPill
                           tone={PRIORITY_TONE[w.priority]}
-                          dot={w.priority === "emergency"}
+                          dot={w.priority === "emergency" || w.priority === "high"}
                         >
                           {w.priority}
                         </StatusPill>
@@ -290,9 +325,7 @@ export function WorkOrderListPage() {
                       <td className="px-3 py-2 font-mono text-xs">{w.asset_uid ?? <Dash />}</td>
                       <td className="px-3 py-2">
                         {w.due_by ? (
-                          <span className={overdue ? "text-red-300" : ""}>
-                            {formatDate(w.due_by)}
-                          </span>
+                          <DueCell iso={w.due_by} overdue={overdue} />
                         ) : (
                           <Dash />
                         )}
@@ -343,6 +376,38 @@ export function WorkOrderListPage() {
       )}
 
       {view === "kanban" && <KanbanBoard items={woQuery.data?.items ?? []} slug={slug ?? ""} />}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Due-date cell — relative time + absolute date for unambiguous reading.     */
+/* -------------------------------------------------------------------------- */
+
+function DueCell({ iso, overdue }: { iso: string; overdue: boolean }) {
+  const date = new Date(iso);
+  const ms = date.getTime() - Date.now();
+  const days = Math.round(ms / 86_400_000);
+  // "Today" / "Tomorrow" / "in 3d" / "1d overdue" — short and scannable.
+  let chip: string;
+  if (overdue) {
+    const overdueDays = Math.abs(days);
+    chip = overdueDays === 0 ? "Due today" : `${overdueDays}d overdue`;
+  } else if (days === 0) {
+    chip = "Due today";
+  } else if (days === 1) {
+    chip = "Tomorrow";
+  } else if (days <= 7) {
+    chip = `in ${days}d`;
+  } else {
+    chip = formatRelative(iso);
+  }
+  return (
+    <div className="leading-tight">
+      <p className={`text-xs ${overdue ? "text-red-300 font-medium" : "text-slate-200"}`}>
+        {chip}
+      </p>
+      <p className="text-[10px] text-slate-500">{formatDate(iso)}</p>
     </div>
   );
 }

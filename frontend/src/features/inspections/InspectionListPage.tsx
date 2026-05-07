@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { ConditionBadge } from "../../components/ConditionBadge";
@@ -42,6 +42,32 @@ export function InspectionListPage() {
   };
 
   const insQuery = useInspections(params);
+
+  // Deep-link prefill: navigate here with ?new=1&asset_uid=X&kind=Y
+  // and we auto-open the create dialog with those defaults.
+  const newDefaults = useMemo(() => {
+    if (search.get("new") !== "1") return null;
+    return {
+      asset_uid: search.get("asset_uid") || undefined,
+      kind: (search.get("kind") as InspectionKind) || undefined,
+      work_order_number: search.get("work_order_number") || undefined,
+    };
+  }, [search]);
+
+  useEffect(() => {
+    if (newDefaults && !createOpen) setCreateOpen(true);
+  }, [newDefaults, createOpen]);
+
+  function handleCloseCreate() {
+    setCreateOpen(false);
+    if (newDefaults) {
+      const next = new URLSearchParams(search);
+      ["new", "kind", "work_order_number"].forEach((k) => next.delete(k));
+      // Keep asset_uid in the URL so the user lands on the
+      // asset-filtered list view after creating the inspection.
+      setSearch(next, { replace: true });
+    }
+  }
 
   // Summary stats — derived from current page (because the API doesn't
   // expose a global pass/fail summary yet; future backend work could
@@ -102,6 +128,7 @@ export function InspectionListPage() {
                   ? "warning"
                   : "danger"
           }
+          to="?pass=true"
         />
         <SummaryBar.Stat
           label="Failed (page)"
@@ -113,10 +140,13 @@ export function InspectionListPage() {
           label="Failures last 7d"
           value={summary.recentFailures}
           tone={summary.recentFailures > 0 ? "warning" : "muted"}
+          to="?pass=false"
         />
       </SummaryBar>
 
-      {createOpen && <CreateInspectionDialog onClose={() => setCreateOpen(false)} />}
+      {createOpen && (
+        <CreateInspectionDialog onClose={handleCloseCreate} defaults={newDefaults ?? undefined} />
+      )}
       {importOpen && <ImportPacpDialog onClose={() => setImportOpen(false)} />}
 
       <div className="flex flex-wrap items-end gap-3">
@@ -265,22 +295,44 @@ export function InspectionListPage() {
                   <RowActions label={`${i.inspection_number} actions`}>
                     <RowActions.Link to={`./${i.inspection_number}`}>View details</RowActions.Link>
                     {i.asset_uid && (
-                      <RowActions.Link to={`/${slug}/assets/${i.asset_uid}`}>
-                        View asset
-                      </RowActions.Link>
+                      <>
+                        <RowActions.Separator />
+                        {/* Failed inspection? Pre-bias the follow-up WO at
+                            high priority and a "repair" category — a
+                            failed valve exercise almost always implies
+                            corrective work. */}
+                        <RowActions.Link
+                          to={
+                            `/${slug}/work-orders?new=1` +
+                            `&asset_uid=${i.asset_uid}` +
+                            `&title=${encodeURIComponent(
+                              `Follow-up: ${KIND_LABEL[i.kind] ?? i.kind} on ${i.asset_uid}`,
+                            )}` +
+                            (i.pass === false
+                              ? `&priority=high&category=repair`
+                              : `&category=repair`)
+                          }
+                        >
+                          Create follow-up work order
+                        </RowActions.Link>
+                        <RowActions.Link
+                          to={`/${slug}/inspections?new=1&asset_uid=${i.asset_uid}&kind=${i.kind}`}
+                        >
+                          Re-inspect this asset
+                        </RowActions.Link>
+                        <RowActions.Separator />
+                        <RowActions.Link to={`/${slug}/assets/${i.asset_uid}`}>
+                          View asset
+                        </RowActions.Link>
+                        <RowActions.Link to={`/${slug}/inspections?asset_uid=${i.asset_uid}`}>
+                          All inspections for this asset
+                        </RowActions.Link>
+                      </>
                     )}
                     {i.work_order_number && (
                       <RowActions.Link to={`/${slug}/work-orders/${i.work_order_number}`}>
                         View linked WO
                       </RowActions.Link>
-                    )}
-                    {i.asset_uid && (
-                      <>
-                        <RowActions.Separator />
-                        <RowActions.Link to={`/${slug}/inspections?asset_uid=${i.asset_uid}`}>
-                          All inspections for this asset
-                        </RowActions.Link>
-                      </>
                     )}
                   </RowActions>
                 </td>

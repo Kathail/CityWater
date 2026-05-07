@@ -29,20 +29,29 @@ const TYPES: WoType[] = ["planned", "reactive"];
 
 interface Props {
   onClose: () => void;
+  /** Prefill the form (used when launched via deep-link from another page). */
+  defaults?: {
+    asset_uid?: string;
+    title?: string;
+    category?: WoCategory;
+    priority?: WoPriority;
+    type?: WoType;
+    description?: string;
+  };
 }
 
-export function CreateWorkOrderDialog({ onClose }: Props) {
+export function CreateWorkOrderDialog({ onClose, defaults }: Props) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
   const templatesQuery = useTemplates();
   const [form, setForm] = useState({
-    title: "",
-    type: "reactive" as WoType,
-    category: "other" as WoCategory,
-    priority: "normal" as WoPriority,
-    description: "",
-    asset_uid: "",
+    title: defaults?.title ?? "",
+    type: defaults?.type ?? ("reactive" as WoType),
+    category: defaults?.category ?? ("other" as WoCategory),
+    priority: defaults?.priority ?? ("normal" as WoPriority),
+    description: defaults?.description ?? "",
+    asset_uid: defaults?.asset_uid ?? "",
     from_template_id: 0,
   });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
