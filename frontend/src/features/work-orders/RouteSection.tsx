@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { interpolate, safeEvaluate } from "../../lib/expr";
 import { translateApiError } from "../../lib/translateApiError";
 import { useAssets } from "../assets/hooks";
+import { TaskFormRenderer } from "../tasks/TaskFormRenderer";
+import type { TaskDefinitionRead } from "../tasks/api";
 import {
   addWoAssets,
   removeWoAsset,
@@ -12,6 +15,23 @@ import {
   type WoAsset,
   type WorkOrderDetail,
 } from "./api";
+
+/** Render the first matching smart_comment for `taskData` against the
+ * task definition. Returns null when nothing applies. Mirrors the
+ * SmartCommentChips pick logic so the operator gets the same narrative
+ * the chip strip would produce — without typing anything. */
+function renderSmartComment(
+  task: TaskDefinitionRead | undefined,
+  taskData: Record<string, unknown>,
+): string | null {
+  if (!task?.smart_comments?.length) return null;
+  for (const c of task.smart_comments) {
+    if (!c?.id || !c?.text) continue;
+    if (c.condition && !safeEvaluate(c.condition, taskData, false)) continue;
+    return interpolate(c.text, taskData);
+  }
+  return null;
+}
 
 /**
  * Route view for a work order's assets.
@@ -28,15 +48,21 @@ import {
 export function RouteSection({
   wo,
   slug,
+  task,
   onAssetCompleted,
 }: {
   wo: WorkOrderDetail;
   slug: string | undefined;
-  /** Called when the operator ticks an asset complete from this view.
-   * Parent (WorkOrderDetailPage) uses it to push the UID into the
-   * smart-comment chip strip on the comment composer. Untick is a
-   * no-op — the chip strip is additive within the session. */
-  onAssetCompleted?: (asset_uid: string) => void;
+  /** Active task definition for the WO. When present, each stop renders
+   * the task's `form` fields and the rendered smart_comment is passed
+   * to the parent via onAssetCompleted so the comment composer can
+   * surface ready-to-post text. */
+  task?: TaskDefinitionRead;
+  /** Called when the operator ticks an asset complete. The second arg
+   * is the rendered smart-comment text (if the task definition + this
+   * stop's task_data produced one) — null otherwise so the parent can
+   * fall back to the bare UID chip. */
+  onAssetCompleted?: (asset_uid: string, comment: string | null) => void;
 }) {
   const queryClient = useQueryClient();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -105,14 +131,17 @@ export function RouteSection({
               key={a.asset_uid}
               asset={a}
               slug={slug}
+              task={task}
               onToggle={(complete) => {
                 update.mutate({ uid: a.asset_uid, patch: { mark_complete: complete } });
-                if (complete) onAssetCompleted?.(a.asset_uid);
+                if (complete) {
+                  onAssetCompleted?.(a.asset_uid, renderSmartComment(task, a.task_data ?? {}));
+                }
               }}
-              onNotes={(notes) =>
+              onSaveTaskData={(taskData) =>
                 update.mutate({
                   uid: a.asset_uid,
-                  patch: { completion_notes: notes },
+                  patch: { task_data: taskData },
                 })
               }
               onRemove={() => {
@@ -151,19 +180,26 @@ export function RouteSection({
 function RouteRow({
   asset,
   slug,
+  task,
   onToggle,
-  onNotes,
+  onSaveTaskData,
   onRemove,
 }: {
   asset: WoAsset;
   slug: string | undefined;
+  task?: TaskDefinitionRead;
   onToggle: (complete: boolean) => void;
-  onNotes: (notes: string) => void;
+  onSaveTaskData: (taskData: Record<string, unknown>) => void;
   onRemove: () => void;
 }) {
   const [notesOpen, setNotesOpen] = useState(false);
-  const [draft, setDraft] = useState(asset.completion_notes ?? "");
+  const [draft, setDraft] = useState<Record<string, unknown>>(asset.task_data ?? {});
   const checked = !!asset.completed_at;
+  const renderedComment = useMemo(
+    () => renderSmartComment(task, asset.task_data ?? {}),
+    [task, asset.task_data],
+  );
+  const hasFormFields = !!task?.form?.length;
 
   return (
     <li
@@ -205,7 +241,13 @@ function RouteRow({
                 onClick={() => setNotesOpen((v) => !v)}
                 className="text-slate-400 hover:text-blue-300"
               >
-                {notesOpen ? "Hide" : asset.completion_notes ? "Note ✎" : "+ Note"}
+                {notesOpen
+                  ? "Hide"
+                  : Object.keys(asset.task_data ?? {}).length > 0
+                    ? "Observations ✎"
+                    : hasFormFields
+                      ? "+ Observations"
+                      : "+ Note"}
               </button>
               <button
                 type="button"
@@ -219,32 +261,94 @@ function RouteRow({
           {asset.address_cached && (
             <p className="mt-0.5 text-xs text-slate-500">{asset.address_cached}</p>
           )}
-          {asset.completion_notes && !notesOpen && (
-            <p className="mt-1 text-xs text-slate-300">— {asset.completion_notes}</p>
+          {/* Rendered narrative for this stop — what the operator's
+              observations would look like as a comment. Auto-collapses
+              when the form is open. */}
+          {!notesOpen && renderedComment && (
+            <p className="mt-1 text-xs italic text-emerald-300">— {renderedComment}</p>
           )}
-          {notesOpen && (
-            <div className="mt-2 flex gap-2">
-              <input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Per-stop note (e.g. flushed 8 min)"
-                className="flex-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  onNotes(draft);
-                  setNotesOpen(false);
-                }}
-                className="rounded bg-blue-500 px-3 py-1 text-xs text-white hover:bg-blue-400"
-              >
-                Save
-              </button>
+          {notesOpen && hasFormFields && task && (
+            <div className="mt-3 space-y-3 rounded border border-slate-800 bg-slate-950/40 p-3">
+              <TaskFormRenderer task={task} value={draft} onChange={setDraft} />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(asset.task_data ?? {});
+                    setNotesOpen(false);
+                  }}
+                  className="rounded border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSaveTaskData(draft);
+                    setNotesOpen(false);
+                  }}
+                  className="rounded bg-blue-500 px-3 py-1 text-xs text-white hover:bg-blue-400"
+                >
+                  Save observations
+                </button>
+              </div>
             </div>
+          )}
+          {/* Fallback: WOs without a task definition fall back to a
+              single free-text note. Same UX the page had before per-
+              asset task_data was added. */}
+          {notesOpen && !hasFormFields && (
+            <FreeTextNote
+              initial={asset.completion_notes ?? ""}
+              onSave={(notes) => {
+                // Store free-text notes under task_data.notes so the
+                // chip strip sees something it can render. The WO
+                // task_data shape is per-task so this key is fine here.
+                onSaveTaskData({ ...(asset.task_data ?? {}), notes });
+                setNotesOpen(false);
+              }}
+              onCancel={() => setNotesOpen(false)}
+            />
           )}
         </div>
       </div>
     </li>
+  );
+}
+
+function FreeTextNote({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial: string;
+  onSave: (notes: string) => void;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState(initial);
+  return (
+    <div className="mt-2 flex gap-2">
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Per-stop note"
+        className="flex-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100"
+      />
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-slate-600"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        onClick={() => onSave(text)}
+        className="rounded bg-blue-500 px-3 py-1 text-xs text-white hover:bg-blue-400"
+      >
+        Save
+      </button>
+    </div>
   );
 }
 

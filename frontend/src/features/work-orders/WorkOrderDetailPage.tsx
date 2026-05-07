@@ -34,13 +34,17 @@ export function WorkOrderDetailPage() {
   const queryClient = useQueryClient();
   const woQuery = useWorkOrder(woNumber);
 
-  // Asset UIDs the operator just ticked complete in this session — flow
-  // through to the comment composer as smart-comment chips so the work
-  // they did is one tap away from being recorded as a comment. Cleared
-  // when the comment is posted.
-  const [pendingAssetRefs, setPendingAssetRefs] = useState<string[]>([]);
-  const recordCompletedAsset = (uid: string) =>
-    setPendingAssetRefs((prev) => (prev.includes(uid) ? prev : [...prev, uid]));
+  // Per-stop entries the operator just ticked complete in this session.
+  // `comment` is the rendered narrative (from the task definition's
+  // smart_comments + that stop's task_data) when available, otherwise
+  // null so the chip strip can fall back to the bare UID.
+  const [pendingAssetRefs, setPendingAssetRefs] = useState<
+    { asset_uid: string; comment: string | null }[]
+  >([]);
+  const recordCompletedAsset = (asset_uid: string, comment: string | null) =>
+    setPendingAssetRefs((prev) =>
+      prev.some((p) => p.asset_uid === asset_uid) ? prev : [...prev, { asset_uid, comment }],
+    );
   const clearPendingAssetRefs = () => setPendingAssetRefs([]);
 
   const transition = useMutation({
@@ -127,7 +131,12 @@ export function WorkOrderDetailPage() {
 
       {taskQuery.data && <TaskSection task={taskQuery.data} wo={wo} slug={slug} />}
 
-      <RouteSection wo={wo} slug={slug} onAssetCompleted={recordCompletedAsset} />
+      <RouteSection
+        wo={wo}
+        slug={slug}
+        task={taskQuery.data}
+        onAssetCompleted={recordCompletedAsset}
+      />
 
       <TasksSection wo={wo} />
       <TimeSection wo={wo} />

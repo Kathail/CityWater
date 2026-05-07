@@ -93,6 +93,10 @@ export interface WoAsset {
   completed_at: string | null;
   completion_notes: string | null;
   notes: string | null;
+  /** Per-stop observations keyed by the WO's task definition `form` field
+   * ids. The UI renders these against the task's smart_comments to
+   * produce a ready-to-post comment. */
+  task_data: Record<string, unknown>;
 }
 
 export interface WorkOrderDetail extends WorkOrderListItem {
@@ -233,6 +237,7 @@ export function updateWoAsset(
     completion_notes?: string | null;
     notes?: string | null;
     mark_complete?: boolean;
+    task_data?: Record<string, unknown>;
   },
 ): Promise<WorkOrderDetail> {
   return apiJson<WorkOrderDetail>(

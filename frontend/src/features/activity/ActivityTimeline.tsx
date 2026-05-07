@@ -15,12 +15,13 @@ interface Props {
    * checklist draft will render in the comment composer. */
   task?: TaskDefinitionRead;
   taskData?: Record<string, unknown>;
-  /** Asset UIDs the parent recently observed the operator complete (e.g.
-   * route-WO stops ticked off). Surfaced as one-tap chips in the comment
-   * composer so the operator can fold "what I just did" into the next
-   * comment without re-typing. Cleared via onClearPendingAssetRefs after
-   * the comment is posted. */
-  pendingAssetRefs?: string[];
+  /** Per-stop entries the parent recently observed the operator complete
+   * (e.g. route-WO stops ticked off). When `comment` is present, the
+   * composer surfaces it as a ready-to-post draft rendered from the
+   * task definition's smart_comments — no typing required. When null,
+   * the bare UID is shown as a fallback. Cleared via
+   * onClearPendingAssetRefs after the comment is posted. */
+  pendingAssetRefs?: { asset_uid: string; comment: string | null }[];
   onClearPendingAssetRefs?: () => void;
 }
 

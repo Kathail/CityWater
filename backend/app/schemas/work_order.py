@@ -198,6 +198,11 @@ class WoAssetUpdate(BaseModel):
     # Tri-state for "mark this stop done": True → set completed_at=now,
     # False → clear it. Null → don't touch.
     mark_complete: bool | None = None
+    # Per-stop observations (e.g. flush minutes, residual ppm) keyed by
+    # the WO's task definition `form` field ids. Frontend renders the
+    # task definition's smart_comments against this blob to produce a
+    # ready-to-post comment without the operator typing prose.
+    task_data: dict[str, Any] | None = None
 
 
 class TaskCreate(BaseModel):

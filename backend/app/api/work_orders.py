@@ -193,6 +193,7 @@ def _list_wo_assets(wo_id: int) -> list[dict[str, Any]]:
             "completed_at": wa.completed_at.isoformat() if wa.completed_at else None,
             "completion_notes": wa.completion_notes,
             "notes": wa.notes,
+            "task_data": wa.task_data or {},
         }
         for wa, a in rows
     ]
@@ -673,6 +674,8 @@ def update_wo_asset(wo_number: str, asset_uid: str):
         row.completion_notes = data.completion_notes
     if data.notes is not None:
         row.notes = data.notes
+    if data.task_data is not None:
+        row.task_data = data.task_data
     if data.mark_complete is True:
         row.completed_at = datetime.now(UTC)
     elif data.mark_complete is False:

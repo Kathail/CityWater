@@ -30,11 +30,15 @@ interface Props {
    * checklist for repetitive daily-WO summaries. */
   task?: TaskDefinitionRead;
   taskData?: Record<string, unknown>;
-  /** Asset UIDs the operator recently completed in this view session
-   * (e.g. ticked-off route-WO stops). Rendered as one-tap chips above
-   * the textarea — clicking inserts the UID into the body. Cleared via
+  /** Per-stop entries the operator recently completed in this view
+   * session (e.g. ticked-off route-WO stops). Each carries the
+   * asset_uid and an optional pre-rendered narrative `comment` (from
+   * the task definition's smart_comments + that stop's task_data).
+   * When the operator clicks "Use as comment" the rendered narratives
+   * are joined and dropped into the body — no typing. When `comment`
+   * is null, the bare UID is used. Cleared via
    * onClearPendingAssetRefs once the comment is posted. */
-  pendingAssetRefs?: string[];
+  pendingAssetRefs?: { asset_uid: string; comment: string | null }[];
   onClearPendingAssetRefs?: () => void;
 }
 
@@ -111,41 +115,60 @@ export function CommentComposer({
 
   function insertAllPending() {
     if (!pendingAssetRefs?.length) return;
-    const joined = pendingAssetRefs.join(", ");
-    if (!body.trim()) {
-      setBody(`Completed: ${joined}`);
-    } else {
-      insertAtCursor(joined);
+    // Prefer the rendered narrative (one bullet per stop) when the WO
+    // has a task definition. Falls back to a "Completed: UID, UID, ..."
+    // line for stops with no rendered comment.
+    const lines: string[] = [];
+    const bareUids: string[] = [];
+    for (const ref of pendingAssetRefs) {
+      if (ref.comment) lines.push(`- ${ref.asset_uid}: ${ref.comment}`);
+      else bareUids.push(ref.asset_uid);
     }
+    if (bareUids.length) lines.push(`Completed: ${bareUids.join(", ")}`);
+    const draft = lines.join("\n");
+    if (!body.trim()) setBody(draft);
+    else insertAtCursor(draft);
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       {pendingAssetRefs && pendingAssetRefs.length > 0 && (
         <div
-          className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2"
+          className="space-y-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3"
           aria-label="Recently completed assets"
         >
-          <span className="text-xs uppercase tracking-wider text-emerald-300">
-            Completed ({pendingAssetRefs.length})
-          </span>
-          {pendingAssetRefs.map((uid) => (
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-emerald-300">
+              Completed ({pendingAssetRefs.length} stop
+              {pendingAssetRefs.length === 1 ? "" : "s"})
+            </p>
             <button
-              key={uid}
               type="button"
-              onClick={() => insertReference(uid)}
-              className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs font-mono text-emerald-100 hover:bg-emerald-500/20"
+              onClick={insertAllPending}
+              className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100 hover:border-emerald-400 hover:bg-emerald-500/20"
             >
-              {uid}
+              Use as comment
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={insertAllPending}
-            className="ml-auto rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-200 hover:bg-emerald-500/20"
-          >
-            Add all to comment
-          </button>
+          </div>
+          <ul className="space-y-1 text-sm text-slate-200">
+            {pendingAssetRefs.map((ref) => (
+              <li key={ref.asset_uid} className="flex flex-wrap items-baseline gap-2">
+                <button
+                  type="button"
+                  onClick={() => insertReference(ref.asset_uid)}
+                  className="font-mono text-xs text-emerald-100 underline-offset-2 hover:underline"
+                  title="Insert just this UID"
+                >
+                  {ref.asset_uid}
+                </button>
+                {ref.comment ? (
+                  <span className="text-slate-300">— {ref.comment}</span>
+                ) : (
+                  <span className="text-xs text-slate-500">(no observations recorded)</span>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       <textarea
