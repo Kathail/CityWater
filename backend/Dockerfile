@@ -48,6 +48,12 @@ USER citywater
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD curl -f http://localhost:5000/healthz || exit 1
+    CMD curl -f http://localhost:${PORT:-5000}/healthz || exit 1
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--access-logfile", "-", "app.wsgi:app"]
+# Shell-form CMD so $PORT / $WEB_CONCURRENCY expand at runtime — Railway
+# (and most PaaS) inject PORT and expect the app to bind to it. Defaults
+# to 5000 for `docker run` locally. Migrations run first; `exec` makes
+# gunicorn become PID 1 so SIGTERM from the orchestrator reaches it
+# directly. --forwarded-allow-ips=* lets gunicorn trust the X-Forwarded-*
+# headers Railway's proxy sets; ProxyFix in app/__init__.py reads them.
+CMD sh -c "flask --app app.wsgi db upgrade && exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers ${WEB_CONCURRENCY:-2} --access-logfile - --forwarded-allow-ips=* app.wsgi:app"
