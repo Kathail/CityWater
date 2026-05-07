@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/Button";
@@ -291,31 +291,14 @@ function RouteRow({
             <p className="mt-1 text-xs italic text-emerald-300">— {renderedComment}</p>
           )}
           {notesOpen && hasFormFields && task && (
-            <div className="mt-3 space-y-3 rounded border border-slate-800 bg-slate-950/40 p-3">
-              <TaskFormRenderer task={task} value={draft} onChange={setDraft} />
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDraft(asset.task_data ?? {});
-                    setNotesOpen(false);
-                  }}
-                  className="rounded border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-slate-600"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSaveTaskData(draft);
-                    setNotesOpen(false);
-                  }}
-                  className="rounded bg-blue-500 px-3 py-1 text-xs text-white hover:bg-blue-400"
-                >
-                  Save observations
-                </button>
-              </div>
-            </div>
+            <ObservationsPanel
+              task={task}
+              draft={draft}
+              setDraft={setDraft}
+              initial={asset.task_data ?? {}}
+              onSave={onSaveTaskData}
+              onClose={() => setNotesOpen(false)}
+            />
           )}
           {/* Fallback: WOs without a task definition fall back to a
               single free-text note. Same UX the page had before per-
@@ -336,6 +319,82 @@ function RouteRow({
         </div>
       </div>
     </li>
+  );
+}
+
+/** Per-stop observation panel with debounced autosave. The operator
+ * fills the form, doesn't have to click Save — values flush 800ms
+ * after the last edit. A small "Saving…/Saved" indicator confirms the
+ * commit so the field crew knows their work isn't going to evaporate
+ * if they navigate away. "Done" just collapses the panel. */
+function ObservationsPanel({
+  task,
+  draft,
+  setDraft,
+  initial,
+  onSave,
+  onClose,
+}: {
+  task: TaskDefinitionRead;
+  draft: Record<string, unknown>;
+  setDraft: (next: Record<string, unknown>) => void;
+  initial: Record<string, unknown>;
+  onSave: (taskData: Record<string, unknown>) => void;
+  onClose: () => void;
+}) {
+  const [status, setStatus] = useState<"idle" | "pending" | "saved">("idle");
+  // Skip the initial mount — `draft === initial` so there's nothing to
+  // autosave. Without this guard we'd fire one POST per asset on first
+  // expand of the panel.
+  const isFirst = useRef(true);
+  const timer = useRef<number | null>(null);
+  // Stable JSON snapshot for shallow equality check across renders. We
+  // serialize anyway when sending to the API, so the cost is identical.
+  const draftKey = JSON.stringify(draft);
+  const initialKey = JSON.stringify(initial);
+
+  useEffect(() => {
+    if (isFirst.current) {
+      isFirst.current = false;
+      return;
+    }
+    if (draftKey === initialKey) return;
+    setStatus("pending");
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      onSave(draft);
+      setStatus("saved");
+      // Fade the "Saved" pill back to idle after a beat so it doesn't
+      // stick around forever — feedback, not chrome.
+      window.setTimeout(() => setStatus("idle"), 1500);
+    }, 800);
+    return () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    };
+    // initialKey is intentionally excluded — when the parent's mutation
+    // resolves and asset.task_data updates, we don't want to re-fire
+    // the autosave loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey, onSave]);
+
+  return (
+    <div className="mt-3 space-y-3 rounded border border-slate-800 bg-slate-950/40 p-3">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="font-medium uppercase tracking-wider text-slate-400">Observations</span>
+        <span className="flex items-center gap-2">
+          {status === "pending" && <span className="text-slate-400">Saving…</span>}
+          {status === "saved" && <span className="text-emerald-300">Saved</span>}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded border border-slate-700 px-3 py-1 text-slate-300 hover:border-slate-600"
+          >
+            Done
+          </button>
+        </span>
+      </div>
+      <TaskFormRenderer task={task} value={draft} onChange={setDraft} />
+    </div>
   );
 }
 

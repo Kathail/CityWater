@@ -195,7 +195,22 @@ export function CreateWorkOrderDialog({ onClose, defaults }: Props) {
           <span className="text-xs text-slate-300">From template (optional)</span>
           <select
             value={form.from_template_id}
-            onChange={(e) => setForm({ ...form, from_template_id: Number(e.target.value) })}
+            onChange={(e) => {
+              const id = Number(e.target.value);
+              const tpl = templatesQuery.data?.find((t) => t.id === id);
+              // Picking a template pre-fills category, priority, title,
+              // and description so the operator doesn't re-enter what
+              // the template already specifies. We only overwrite empty
+              // fields — anything the operator already typed stays.
+              setForm((prev) => ({
+                ...prev,
+                from_template_id: id,
+                category: tpl?.category ?? prev.category,
+                priority: tpl?.default_priority ?? prev.priority,
+                title: prev.title || tpl?.name || "",
+                description: prev.description || tpl?.instructions || "",
+              }));
+            }}
             className="mt-1 block w-full rounded border border-slate-700 px-2 py-1 text-sm bg-slate-900"
           >
             <option value={0}>None</option>
