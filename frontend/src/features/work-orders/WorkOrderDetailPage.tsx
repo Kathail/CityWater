@@ -29,6 +29,19 @@ import {
 import { useWorkOrder } from "./hooks";
 import { WO_STATUS_TONE, WO_TRANSITIONS as TRANSITIONS } from "./tones";
 
+/** Single-letter hotkey per destination status. Letters are stable so
+ * a returning operator's muscle memory works across WOs. Avoid
+ * collisions with each from-state's transition set in `tones.ts`. */
+const WO_HOTKEY: Record<WoStatus, string> = {
+  draft: "d",
+  open: "o",
+  assigned: "a",
+  in_progress: "i",
+  on_hold: "h",
+  completed: "c",
+  cancelled: "x",
+};
+
 export function WorkOrderDetailPage() {
   const { slug, wo: woNumber } = useParams<{ slug: string; wo: string }>();
   const queryClient = useQueryClient();
@@ -54,6 +67,31 @@ export function WorkOrderDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
     },
   });
+
+  // Single-letter hotkeys for status transitions. Skips when the user
+  // is typing in an input/textarea/contenteditable/select so it doesn't
+  // hijack their keystrokes mid-comment.
+  useEffect(() => {
+    function isEditableTarget(t: EventTarget | null): boolean {
+      if (!(t instanceof HTMLElement)) return false;
+      const tag = t.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      if (t.isContentEditable) return true;
+      return false;
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isEditableTarget(e.target)) return;
+      if (!woQuery.data) return;
+      const allowed = TRANSITIONS[woQuery.data.status];
+      const target = allowed.find((s) => WO_HOTKEY[s] === e.key.toLowerCase());
+      if (!target) return;
+      e.preventDefault();
+      transition.mutate(target);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [woQuery.data, transition]);
 
   const taskCode = woQuery.data?.task_definition_code ?? null;
   const taskQuery = useQuery<TaskDefinitionRead, Error>({
@@ -94,18 +132,27 @@ export function WorkOrderDetailPage() {
           <div className="flex flex-col items-end gap-2">
             <StatusPill status={wo.status} />
             <div className="flex flex-wrap justify-end gap-1">
-              {TRANSITIONS[wo.status].map((to) => (
-                <Button
-                  key={to}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => transition.mutate(to)}
-                  disabled={transition.isPending}
-                  aria-label={`Transition to ${to.replace("_", " ")}`}
-                >
-                  → {to.replace("_", " ")}
-                </Button>
-              ))}
+              {TRANSITIONS[wo.status].map((to) => {
+                const hotkey = WO_HOTKEY[to];
+                return (
+                  <Button
+                    key={to}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => transition.mutate(to)}
+                    disabled={transition.isPending}
+                    aria-label={`Transition to ${to.replace("_", " ")} (shortcut ${hotkey?.toUpperCase()})`}
+                    title={hotkey ? `Shortcut: ${hotkey.toUpperCase()}` : undefined}
+                  >
+                    → {to.replace("_", " ")}
+                    {hotkey && (
+                      <kbd className="ml-2 rounded bg-slate-800 px-1 text-[10px] font-mono text-slate-400">
+                        {hotkey.toUpperCase()}
+                      </kbd>
+                    )}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         </div>
