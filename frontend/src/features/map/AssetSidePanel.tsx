@@ -143,7 +143,11 @@ function PanelShell({
 }) {
   return (
     <aside
-      className="absolute right-4 top-4 w-80 rounded-lg border border-slate-800 bg-slate-900 p-4 shadow-2xl shadow-black/40 z-10"
+      // Bottom sheet on mobile, side panel on desktop. Mobile gets
+      // edge-to-edge (minus 8px) anchored bottom, max-height 60vh with
+      // overflow-y so a long body still scrolls within the sheet
+      // instead of pushing the map off-screen.
+      className="absolute inset-x-2 bottom-2 max-h-[60vh] overflow-y-auto rounded-lg border border-slate-800 bg-slate-900 p-4 shadow-2xl shadow-black/40 z-10 md:inset-x-auto md:bottom-auto md:right-4 md:top-4 md:max-h-none md:overflow-visible md:w-80"
       role="region"
       aria-label="Selected feature"
     >

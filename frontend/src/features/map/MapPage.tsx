@@ -157,6 +157,19 @@ export function MapPage() {
   // informational; SR pre-fills lon/lat from the click.
   const [newWoOpen, setNewWoOpen] = useState(false);
   const [newSrCoords, setNewSrCoords] = useState<[number, number] | null>(null);
+  // MAP-P1-15: layers panel slides over the map on mobile (<md). On
+  // desktop it's always visible in the left rail and this state is
+  // ignored. Closes on backdrop tap, on every escape, and after
+  // any toggle so the operator can see what they just changed.
+  const [layersOpen, setLayersOpen] = useState(false);
+  useEffect(() => {
+    if (!layersOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLayersOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [layersOpen]);
 
   // Initialize layer visibility once classes load — but ONLY on the
   // first ever visit (no localStorage record yet). Once a user has
@@ -653,9 +666,33 @@ export function MapPage() {
             return next;
           })
         }
+        mobileOpen={layersOpen}
+        onMobileClose={() => setLayersOpen(false)}
       />
       <div className="relative flex-1">
         <div ref={containerRef} className="absolute inset-0" data-testid="map-container" />
+        {/* Mobile-only hamburger to reveal the layers drawer. The
+            desktop sidebar is always visible so this never renders
+            on >=md. */}
+        <button
+          type="button"
+          onClick={() => setLayersOpen(true)}
+          aria-label="Open layers"
+          className="absolute left-3 top-3 z-10 rounded-md border border-slate-700 bg-slate-900/90 p-2 text-slate-200 shadow-lg backdrop-blur md:hidden"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="h-5 w-5"
+          >
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
         <MapHeader />
         <MapSearchBar onPick={flyToHit} />
         {selected && <AssetSidePanel feature={selected} onClose={() => setSelected(null)} />}
@@ -700,7 +737,10 @@ export function MapPage() {
 function MapHeader() {
   const { slug } = useParams<{ slug: string }>();
   return (
-    <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-md border border-slate-700 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-300 shadow-lg backdrop-blur">
+    // Pushed right on mobile so it doesn't overlap the hamburger
+    // toggle (which lives at left-3). Desktop has no hamburger so
+    // the breadcrumb sits flush left.
+    <div className="absolute left-16 top-3 z-10 flex items-center gap-2 rounded-md border border-slate-700 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-300 shadow-lg backdrop-blur md:left-3">
       <Link to={`/${slug}/`} className="text-slate-400 hover:text-slate-200">
         ← Home
       </Link>
