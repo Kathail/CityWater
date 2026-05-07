@@ -138,7 +138,7 @@ export function DemoLoginPage() {
     } catch (e) {
       console.warn("[demo] hard-reset partial", e);
     } finally {
-      window.location.replace("/demo");
+      window.location.replace("/try-demo");
     }
   }
 
