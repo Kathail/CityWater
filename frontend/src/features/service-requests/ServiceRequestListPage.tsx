@@ -8,7 +8,7 @@ import { RowActions } from "../../components/RowActions";
 import { EmptyState } from "../../components/States";
 import { StatusPill } from "../../components/StatusPill";
 import { SummaryBar } from "../../components/SummaryBar";
-import { showToast } from "../../components/Toast";
+import { showToast } from "../../lib/toast";
 import { formatDateTime } from "../../lib/format";
 import { translateApiError } from "../../lib/translateApiError";
 import { IntakeDialog } from "./IntakeDialog";

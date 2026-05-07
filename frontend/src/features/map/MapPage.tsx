@@ -11,6 +11,7 @@ import { AddAssetDialog } from "./AddAssetDialog";
 import { MapSearchBar, type MapSearchHit } from "./MapSearchBar";
 import { CreateWorkOrderDialog } from "../work-orders/CreateWorkOrderDialog";
 import { IntakeDialog } from "../service-requests/IntakeDialog";
+import { setSerde, usePersistedState } from "../../lib/persistedState";
 
 const SATELLITE_TILE_URL = (import.meta as { env: { VITE_SATELLITE_TILE_URL?: string } }).env
   .VITE_SATELLITE_TILE_URL;
@@ -69,11 +70,22 @@ export function MapPage() {
   const tileLayersQuery = useTileLayers();
   const overlaysQuery = useMapOverlays();
 
-  const [basemap, setBasemap] = useState<BasemapId>("osm");
-  const [visibleClasses, setVisibleClasses] = useState<Set<string>>(new Set());
-  const [showWos, setShowWos] = useState(true);
-  const [showSrs, setShowSrs] = useState(true);
-  const [areaKindsVisible, setAreaKindsVisible] = useState<Set<string>>(new Set());
+  // Layer toggles persist across refresh — operators routinely turn off
+  // entire domains (e.g. only show storm assets while triaging a flood)
+  // and shouldn't have to redo that every page load.
+  const [basemap, setBasemap] = usePersistedState<BasemapId>("map.basemap", "osm");
+  const [visibleClasses, setVisibleClasses] = usePersistedState<Set<string>>(
+    "map.visibleClasses",
+    new Set(),
+    setSerde,
+  );
+  const [showWos, setShowWos] = usePersistedState("map.showWos", true);
+  const [showSrs, setShowSrs] = usePersistedState("map.showSrs", true);
+  const [areaKindsVisible, setAreaKindsVisible] = usePersistedState<Set<string>>(
+    "map.areaKinds",
+    new Set(),
+    setSerde,
+  );
   const areaKindsInited = useRef(false);
   const [selected, setSelected] = useState<ClickedFeature | null>(null);
   const [contextMenu, setContextMenu] = useState<{
@@ -87,12 +99,19 @@ export function MapPage() {
   const [newWoOpen, setNewWoOpen] = useState(false);
   const [newSrCoords, setNewSrCoords] = useState<[number, number] | null>(null);
 
-  // Initialize layer visibility once classes load
+  // Initialize layer visibility once classes load — but ONLY on the
+  // first ever visit (no localStorage record yet). Once a user has
+  // interacted with the layer panel, their saved set wins, even if
+  // they hid everything intentionally.
+  const layerInitRan = useRef(false);
   useEffect(() => {
-    if (tileLayersQuery.data && visibleClasses.size === 0) {
+    if (layerInitRan.current) return;
+    if (!tileLayersQuery.data) return;
+    layerInitRan.current = true;
+    if (window.localStorage.getItem("map.visibleClasses") === null) {
       setVisibleClasses(new Set(tileLayersQuery.data.map((l) => l.class_code)));
     }
-  }, [tileLayersQuery.data, visibleClasses.size]);
+  }, [tileLayersQuery.data, setVisibleClasses]);
 
   // Initialize map
   useEffect(() => {

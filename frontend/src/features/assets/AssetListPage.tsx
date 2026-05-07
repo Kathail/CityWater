@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { usePersistedState } from "../../lib/persistedState";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { ConditionBadge } from "../../components/ConditionBadge";
@@ -30,8 +31,10 @@ export function AssetListPage() {
   const [search, setSearch] = useSearchParams();
   const [pendingQ, setPendingQ] = useState(search.get("q") ?? "");
   const [importOpen, setImportOpen] = useState(false);
-  const [showOptional, setShowOptional] = useState(false);
-  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
+  // Persist the "show optional columns" toggle and the sort choice so
+  // returning users see the same view they left.
+  const [showOptional, setShowOptional] = usePersistedState("assets.showOptional", false);
+  const [sort, setSort] = usePersistedState<{ key: SortKey; dir: SortDir }>("assets.sort", {
     key: "uid",
     dir: "asc",
   });
