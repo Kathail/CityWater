@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +19,22 @@ class Settings(BaseSettings):
     )
     git_sha: str = Field(default="dev")
     log_level: str = Field(default="INFO")
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_database_url(cls, v: str) -> str:
+        """Railway / Heroku / managed Postgres providers typically
+        inject the URL with the bare `postgresql://` (or legacy
+        `postgres://`) scheme. SQLAlchemy 2 with psycopg(3) requires
+        the explicit dialect prefix, so normalise here rather than
+        asking every operator to hand-edit the env value before paste."""
+        if v.startswith("postgresql+"):
+            return v
+        if v.startswith("postgresql://"):
+            return "postgresql+psycopg://" + v[len("postgresql://") :]
+        if v.startswith("postgres://"):
+            return "postgresql+psycopg://" + v[len("postgres://") :]
+        return v
 
     # S12 — hardening
     # Empty string falls back to in-memory limiter (dev only).
