@@ -134,3 +134,30 @@ def test_discoloured_seed_no_data_yields_empty() -> None:
     # No answers in task_data -> no condition matches -> no chips.
     out = render_suggestions(TASK_WAT_DISCOLOURED["smart_comments"], {})
     assert out == []
+
+
+# ---------- catalog coverage: every SR category triggers a task ----------
+
+
+def test_every_sr_category_has_a_matching_task() -> None:
+    """The SR comment composer renders smart-comment chips only when an
+    SR has a matching task definition. To make the feature universally
+    available, every value in `ServiceRequest.VALID_CATEGORIES` must
+    appear as a trigger somewhere in the task catalog. Adding a new SR
+    category to the enum without a matching trigger should fail this test
+    so we don't silently lose smart comments on that category.
+    """
+    from app.models.service_request import VALID_CATEGORIES
+    from app.seeds.tasks.catalog import TASKS
+
+    triggered: set[str] = set()
+    for entry in TASKS:
+        for trig in entry.get("triggers", []) or []:
+            if trig.get("from") == "service_request" and "category" in trig:
+                triggered.add(trig["category"])
+
+    missing = set(VALID_CATEGORIES) - triggered
+    assert not missing, (
+        f"SR categories with no matching task definition (smart comments "
+        f"won't render in the comment composer): {sorted(missing)}"
+    )

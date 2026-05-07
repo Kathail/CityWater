@@ -273,6 +273,10 @@ TASKS: list[dict[str, Any]] = [
         "applies_to_classes": ["WAT_HYD"],
         "triggers": [
             {"from": "service_request", "category": "discoloured_water"},
+            # `water_quality` is the SR category for taste/smell/colour
+            # complaints that don't strictly read as discoloured. Same
+            # response — flush the nearest hydrant — so we share the task.
+            {"from": "service_request", "category": "water_quality"},
             {"from": "program", "program_code": "WAT-PROG-HYDRANT-FLUSH"},
         ],
         "smart_comments": [
@@ -1028,6 +1032,10 @@ TASKS: list[dict[str, Any]] = [
         "applies_to_classes": [],
         "triggers": [
             {"from": "service_request", "category": "general_complaint"},
+            # `other` is the catch-all SR category in the enum; route it
+            # here so every SR (including the catch-all) matches a task
+            # and the smart-comment chips render in the comment composer.
+            {"from": "service_request", "category": "other"},
         ],
         "smart_comments": [
             {"id": "complaint_resolved",
