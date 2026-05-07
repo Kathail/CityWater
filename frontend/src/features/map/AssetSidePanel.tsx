@@ -102,7 +102,11 @@ export function AssetSidePanel({ feature, onClose }: Props) {
 
   // Asset
   return (
-    <PanelShell onClose={onClose} eyebrow={feature.domain.toUpperCase()} title={feature.asset_uid}>
+    <PanelShell
+      onClose={onClose}
+      eyebrow={(feature.domain || "ASSET").toUpperCase()}
+      title={feature.asset_uid}
+    >
       <p className="text-xs text-slate-400">{feature.class_code}</p>
       <dl className="mt-3 grid grid-cols-2 gap-y-1 text-sm">
         <Tag label="Status" value={feature.status} />

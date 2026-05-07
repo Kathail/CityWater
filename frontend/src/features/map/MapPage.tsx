@@ -9,6 +9,8 @@ import { AssetSidePanel, type ClickedFeature } from "./AssetSidePanel";
 import { MapContextMenu } from "./MapContextMenu";
 import { AddAssetDialog } from "./AddAssetDialog";
 import { MapSearchBar, type MapSearchHit } from "./MapSearchBar";
+import { CreateWorkOrderDialog } from "../work-orders/CreateWorkOrderDialog";
+import { IntakeDialog } from "../service-requests/IntakeDialog";
 
 const SATELLITE_TILE_URL = (import.meta as { env: { VITE_SATELLITE_TILE_URL?: string } }).env
   .VITE_SATELLITE_TILE_URL;
@@ -79,6 +81,11 @@ export function MapPage() {
     coords: [number, number];
   } | null>(null);
   const [addCoords, setAddCoords] = useState<[number, number] | null>(null);
+  // MAP-P1-12: open these dialogs from the map context menu instead of
+  // tombstoning them. WO has no own location field so coords are
+  // informational; SR pre-fills lon/lat from the click.
+  const [newWoOpen, setNewWoOpen] = useState(false);
+  const [newSrCoords, setNewSrCoords] = useState<[number, number] | null>(null);
 
   // Initialize layer visibility once classes load
   useEffect(() => {
@@ -486,8 +493,14 @@ export function MapPage() {
             pixelY={contextMenu.pixel[1]}
             coords={contextMenu.coords}
             onAddAsset={(c) => setAddCoords(c)}
+            onCreateWorkOrder={() => setNewWoOpen(true)}
+            onCreateServiceRequest={(c) => setNewSrCoords(c)}
             onClose={() => setContextMenu(null)}
           />
+        )}
+        {newWoOpen && <CreateWorkOrderDialog onClose={() => setNewWoOpen(false)} />}
+        {newSrCoords && (
+          <IntakeDialog defaultCoords={newSrCoords} onClose={() => setNewSrCoords(null)} />
         )}
         {addCoords && (
           <AddAssetDialog

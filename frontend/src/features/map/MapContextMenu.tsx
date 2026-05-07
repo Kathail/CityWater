@@ -5,10 +5,20 @@ interface Props {
   /** lon/lat the menu represents */
   coords: [number, number];
   onAddAsset: (coords: [number, number]) => void;
+  onCreateWorkOrder: (coords: [number, number]) => void;
+  onCreateServiceRequest: (coords: [number, number]) => void;
   onClose: () => void;
 }
 
-export function MapContextMenu({ pixelX, pixelY, coords, onAddAsset, onClose }: Props) {
+export function MapContextMenu({
+  pixelX,
+  pixelY,
+  coords,
+  onAddAsset,
+  onCreateWorkOrder,
+  onCreateServiceRequest,
+  onClose,
+}: Props) {
   return (
     <ul
       role="menu"
@@ -38,10 +48,11 @@ export function MapContextMenu({ pixelX, pixelY, coords, onAddAsset, onClose }: 
       <li>
         <button
           role="menuitem"
-          disabled
-          aria-disabled="true"
-          title="Coming in Sprint 5"
-          className="w-full text-left px-3 py-1.5 text-slate-400 cursor-not-allowed"
+          onClick={() => {
+            onCreateWorkOrder(coords);
+            onClose();
+          }}
+          className="w-full text-left px-3 py-1.5 hover:bg-blue-500/10 text-slate-100"
         >
           Create work order here…
         </button>
@@ -49,10 +60,11 @@ export function MapContextMenu({ pixelX, pixelY, coords, onAddAsset, onClose }: 
       <li>
         <button
           role="menuitem"
-          disabled
-          aria-disabled="true"
-          title="Coming in Sprint 8"
-          className="w-full text-left px-3 py-1.5 text-slate-400 cursor-not-allowed"
+          onClick={() => {
+            onCreateServiceRequest(coords);
+            onClose();
+          }}
+          className="w-full text-left px-3 py-1.5 hover:bg-blue-500/10 text-slate-100"
         >
           Create service request here…
         </button>

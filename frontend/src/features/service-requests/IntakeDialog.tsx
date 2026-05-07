@@ -29,9 +29,11 @@ const PRIORITIES: SrPriority[] = ["low", "normal", "high", "emergency"];
 
 interface Props {
   onClose: () => void;
+  /** Prefill lon/lat (used when launched from a map right-click). */
+  defaultCoords?: [number, number];
 }
 
-export function IntakeDialog({ onClose }: Props) {
+export function IntakeDialog({ onClose, defaultCoords }: Props) {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
   const create = useCreateServiceRequest();
@@ -45,8 +47,8 @@ export function IntakeDialog({ onClose }: Props) {
     caller_email: "",
     address: "",
     description: "",
-    lon: "",
-    lat: "",
+    lon: defaultCoords ? defaultCoords[0].toFixed(6) : "",
+    lat: defaultCoords ? defaultCoords[1].toFixed(6) : "",
   });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
