@@ -45,10 +45,16 @@ export function TenantShell() {
   return (
     <div className="min-h-screen flex bg-slate-950 text-slate-100">
       <aside className="w-56 border-r border-slate-800 bg-slate-900 p-4 flex flex-col">
-        <Link to={`/${slug}/`} className="mb-6 flex items-center gap-2.5">
+        <Link
+          to={`/${slug}/`}
+          className="mb-6 flex items-center gap-2.5"
+          title={tenant.name}
+        >
           <Logo size={32} className="shrink-0" />
           <div className="min-w-0">
-            <h1 className="text-base font-semibold text-slate-100 leading-tight truncate">
+            {/* line-clamp-2 lets longer tenant names wrap to a 2nd line
+                instead of being cut off mid-word in the 224px sidebar. */}
+            <h1 className="text-sm font-semibold text-slate-100 leading-tight line-clamp-2 break-words">
               {tenant.name}
             </h1>
             <p className="text-xs text-blue-400">/{slug}</p>

@@ -119,24 +119,23 @@ function AreaRow({
       {isQuiet ? (
         <span className="text-[10px] text-slate-600">—</span>
       ) : (
-        <span className="flex items-baseline gap-2 tabular-nums">
+        <span className="flex items-center gap-1.5 tabular-nums">
           {row.active_wos > 0 && (
-            <span className="text-sm font-semibold text-slate-100">
-              {row.active_wos}
-              <span className="ml-0.5 text-[10px] uppercase tracking-wide text-slate-500">
-                {" "}
-                open
-              </span>
+            <span className="inline-flex items-baseline gap-1 rounded bg-slate-800 px-1.5 py-0.5 ring-1 ring-slate-700/60">
+              <span className="text-xs font-semibold text-slate-100">{row.active_wos}</span>
+              <span className="text-[10px] uppercase tracking-wide text-slate-400">open</span>
             </span>
           )}
           {row.overdue_wos > 0 && (
-            <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-red-200 ring-1 ring-red-500/30">
-              {row.overdue_wos} overdue
+            <span className="inline-flex items-baseline gap-1 rounded bg-red-500/15 px-1.5 py-0.5 ring-1 ring-red-500/30">
+              <span className="text-xs font-semibold text-red-200">{row.overdue_wos}</span>
+              <span className="text-[10px] uppercase tracking-wide text-red-300/70">overdue</span>
             </span>
           )}
           {row.active_srs > 0 && (
-            <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-200 ring-1 ring-amber-500/20">
-              {row.active_srs} SR
+            <span className="inline-flex items-baseline gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 ring-1 ring-amber-500/20">
+              <span className="text-xs font-semibold text-amber-200">{row.active_srs}</span>
+              <span className="text-[10px] uppercase tracking-wide text-amber-300/70">SR</span>
             </span>
           )}
         </span>

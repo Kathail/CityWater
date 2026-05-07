@@ -32,18 +32,18 @@ export function DashCard({
 }: Props) {
   return (
     <section
-      className={`rounded-md border border-slate-800 bg-slate-900 p-4 ${className}`.trim()}
+      className={`rounded-md border border-slate-800 bg-slate-900 p-4 shadow-sm shadow-black/20 ${className}`.trim()}
     >
-      <header className="mb-3 flex items-baseline justify-between gap-3">
+      <header className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-300">
           {title}
         </h2>
-        <div className="flex items-baseline gap-3 text-xs">
+        <div className="flex items-center gap-3 text-xs">
           {trailing}
           {to && (
             <Link
               to={to}
-              className="group inline-flex items-baseline gap-0.5 text-blue-400 hover:text-blue-300"
+              className="group inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-300 transition-colors hover:bg-blue-500/10 hover:text-blue-200"
             >
               {linkLabel}
               <span

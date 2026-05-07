@@ -73,13 +73,22 @@ export function ServiceRequestListPage() {
 
   const query = useServiceRequests(params);
 
+  // Client-side priority filter — backend list endpoint doesn't accept
+  // `priority` yet, but the dashboard's "by priority" segments deep-link
+  // into us with ?priority=X. Apply it here so those links actually do
+  // something. When the backend grows the param, swap to server-side.
+  const priorityFilter = (search.get("priority") as SrPriority) || undefined;
+
   const visibleItems = useMemo(() => {
-    const items = query.data?.items ?? [];
+    let items = query.data?.items ?? [];
     if (scope === "attention" && !params.status) {
-      return items.filter((sr) => ATTENTION_STATUSES.includes(sr.status));
+      items = items.filter((sr) => ATTENTION_STATUSES.includes(sr.status));
+    }
+    if (priorityFilter) {
+      items = items.filter((sr) => sr.priority === priorityFilter);
     }
     return items;
-  }, [query.data, scope, params.status]);
+  }, [query.data, scope, params.status, priorityFilter]);
 
   const summary = useMemo(() => {
     const items = query.data?.items ?? [];
@@ -120,7 +129,13 @@ export function ServiceRequestListPage() {
     onError: (e) => alert(translateApiError(e)),
   });
 
-  const hasFilters = !!(params.status || params.category || params.domain || params.q);
+  const hasFilters = !!(
+    params.status ||
+    params.category ||
+    params.domain ||
+    params.q ||
+    priorityFilter
+  );
 
   return (
     <div className="p-8 space-y-4">

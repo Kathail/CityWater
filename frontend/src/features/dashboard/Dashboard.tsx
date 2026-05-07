@@ -5,33 +5,30 @@ import { ByArea } from "./ByArea";
 import { CategoryChart } from "./CategoryChart";
 import { KpiHero } from "./KpiHero";
 import { RecentActivity } from "./RecentActivity";
-import { ServiceRequestsCard } from "./ServiceRequestsCard";
-import { ThroughputSpark } from "./ThroughputSpark";
+import { SystemPulse } from "./SystemPulse";
 import { TodayQueue } from "./TodayQueue";
 import { type DashboardResponse, getDashboard } from "./api";
 
 /**
  * Supervisor dashboard — landing page for `/{slug}`.
  *
- * Layout philosophy:
+ * Iteration-3 layout (right column collapsed from 3 cards into 2):
  *
  *   ┌────────────────────────────────────────────────┐
  *   │ Greeting + date                                 │
  *   ├────────────────────────────────────────────────┤
- *   │ KpiHero: Open · Overdue · New SR  (3 big tiles)│
- *   │ + secondary stats inline below                  │
+ *   │ KpiHero  (3 large tiles + summary strip below) │
  *   ├──────────────────────────────┬─────────────────┤
- *   │ Today's queue (operational)  │ ServiceRequests │
- *   │                              ├─────────────────┤
- *   │ Service areas (operational)  │ Throughput 7d   │
- *   │                              ├─────────────────┤
- *   │ Work by category (analytical)│ Recent activity │
+ *   │ Today's queue                │ System pulse    │
+ *   │   ↓ (operational)            │   (sparkline +  │
+ *   │ Service areas                │    SR snapshot +│
+ *   │   ↓                          │    priority bar)│
+ *   │ Work by category             ├─────────────────┤
+ *   │                              │ Recent activity │
  *   └──────────────────────────────┴─────────────────┘
  *
- * The two columns split by *intent*: left = "what's happening / where",
- * right = "status of the system + what just changed". A supervisor
- * scanning top-to-bottom on the left gets workload + spatial context;
- * scanning the right gets real-time pulse.
+ * Left column = "what's happening / where" (operational + spatial).
+ * Right column = "system pulse + change log" (situational + audit).
  */
 
 interface Props {
@@ -79,16 +76,16 @@ export function Dashboard({ user, tenant }: Props) {
               <CategoryChart buckets={dash.data.wo_by_category_30d} />
             </div>
 
-            {/* RIGHT: situational — status of the system, recent change. */}
+            {/* RIGHT: situational — system pulse + recent change. Two
+                cards instead of three so the rail reads as a single
+                column of summaries. */}
             <div className="space-y-4">
-              <ServiceRequestsCard
-                kpis={dash.data.sr_kpis}
-                buckets={dash.data.sr_by_priority_30d}
+              <SystemPulse
+                srKpis={dash.data.sr_kpis}
+                srBuckets={dash.data.sr_by_priority_30d}
+                throughput={dash.data.throughput_7d}
+                completedThisWeek={dash.data.wo_kpis.completed_this_week}
                 slug={tenant.slug}
-              />
-              <ThroughputSpark
-                series={dash.data.throughput_7d}
-                totalThisWeek={dash.data.wo_kpis.completed_this_week}
               />
               <RecentActivity items={dash.data.recent_activity} slug={tenant.slug} />
             </div>

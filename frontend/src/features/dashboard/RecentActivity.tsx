@@ -5,20 +5,44 @@ import type { DashboardResponse } from "./api";
 
 /**
  * Most-recent comments + status transitions across the tenant's
- * entities. Iteration-2 refinements:
+ * entities.
  *
- * - Wrapped in <DashCard> for chrome consistency.
- * - Items now group by day (Today / Yesterday / earlier) so the
- *   eye can find recent activity without scanning timestamps.
- * - Strips the legacy "[sim]" prefix.
- * - The entity-type chip is colour-coded and links into the matching
- *   list page (WO / SR / INS).
+ * Iteration-3 refinements:
+ * - The whole row is a single link target (was: only the chip linked,
+ *   easy to miss). Hover reveals an explicit "Open →" so the next
+ *   action is obvious without guessing.
+ * - The kind ("comment" / "status change") is rendered as a small
+ *   coloured icon-chip rather than tiny grey text, so the eye can
+ *   scan a column to spot status transitions vs human comments.
+ * - Items still group by day (Today / Yesterday / Earlier) so recency
+ *   is always available without per-row timestamp parsing.
+ *
+ * Note: activity items carry only the internal numeric `entity_id`,
+ * not the human-readable wo_number/sr_number/inspection_number. Per
+ * CLAUDE.md hard rule, we don't expose internal IDs in URLs, so the
+ * row links to the entity-type list page rather than the detail page.
  */
 
 const ENTITY_CHIP: Record<"wo" | "sr" | "ins", string> = {
   wo: "bg-blue-500/15 text-blue-200 ring-blue-500/30",
   sr: "bg-amber-500/15 text-amber-200 ring-amber-500/30",
   ins: "bg-purple-500/15 text-purple-200 ring-purple-500/30",
+};
+
+const KIND_CHIP: Record<
+  "comment" | "transition",
+  { glyph: string; cls: string; label: string }
+> = {
+  comment: {
+    glyph: "“",
+    cls: "bg-slate-700/70 text-slate-200",
+    label: "Comment",
+  },
+  transition: {
+    glyph: "→",
+    cls: "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/20",
+    label: "Status change",
+  },
 };
 
 interface ItemProps {
@@ -46,7 +70,7 @@ export function RecentActivity({
               <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">
                 {g.label}
               </p>
-              <ol className="space-y-1.5">
+              <ol className="space-y-0.5">
                 {g.items.map((item, i) => (
                   <ActivityRow key={i} item={item} slug={slug} />
                 ))}
@@ -61,33 +85,44 @@ export function RecentActivity({
 
 function ActivityRow({ item, slug }: ItemProps) {
   const meta = entityMeta(slug, item.entity_type);
+  const kind =
+    item.kind === "comment" || item.kind === "transition" ? KIND_CHIP[item.kind] : KIND_CHIP.comment;
   return (
-    <li className="flex gap-2.5 text-sm">
+    <li>
       <Link
         to={meta.href}
-        className={`mt-0.5 inline-flex h-5 shrink-0 items-center justify-center rounded px-1.5 text-[10px] font-medium uppercase tracking-wide ring-1 ${ENTITY_CHIP[meta.tone]}`}
-        aria-label={`View ${meta.label} list`}
+        className="group/row flex items-start gap-2 rounded px-1.5 py-1.5 text-sm transition-colors hover:bg-slate-800/50"
       >
-        {meta.label}
+        <span
+          className={`mt-0.5 inline-flex h-5 shrink-0 items-center justify-center rounded px-1.5 text-[10px] font-medium uppercase tracking-wide ring-1 ${ENTITY_CHIP[meta.tone]}`}
+          aria-hidden="true"
+        >
+          {meta.label}
+        </span>
+        <span
+          className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[12px] leading-none ${kind.cls}`}
+          aria-label={kind.label}
+          title={kind.label}
+        >
+          {kind.glyph}
+        </span>
+        <span className="min-w-0 flex-1">
+          <p className="text-[13px] leading-snug text-slate-200">
+            {cleanActivitySummary(item.summary)}
+          </p>
+          <p className="mt-0.5 text-[10px] text-slate-500">{relativeTime(item.occurred_at)}</p>
+        </span>
+        <span
+          aria-hidden="true"
+          className="mt-1 text-[11px] text-slate-600 opacity-0 transition-opacity group-hover/row:opacity-100"
+        >
+          Open →
+        </span>
       </Link>
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] leading-snug text-slate-200">
-          {cleanActivitySummary(item.summary)}
-        </p>
-        <p className="mt-0.5 text-[10px] text-slate-500">
-          {item.kind === "comment" ? "comment" : "status change"} ·{" "}
-          {relativeTime(item.occurred_at)}
-        </p>
-      </div>
     </li>
   );
 }
 
-/**
- * Bucket activity items into Today / Yesterday / earlier groups.
- * Stable: Date.now() captured once per render so all items in the
- * group share the same "now" reference.
- */
 function groupByDay(items: DashboardResponse["recent_activity"]) {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
