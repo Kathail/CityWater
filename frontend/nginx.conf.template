@@ -12,11 +12,13 @@ server {
 
     # DNS resolver — required for nginx to re-resolve $upstream per
     # request. Without this, nginx caches the backend's IP at startup
-    # and never refreshes; when Railway redeploys the backend, its
-    # private IP changes and we get connect-timeout 504s until the
-    # frontend itself is also redeployed. The Docker resolver inside
-    # Railway's network is reachable at the conventional 127.0.0.11.
-    resolver 127.0.0.11 valid=30s ipv6=off;
+    # and never refreshes; when Railway redeploys the backend its
+    # private IP changes and we get connect-timeout 504s.
+    # ${DNS_RESOLVER} is populated by docker-entrypoint-resolver.sh from
+    # the container's /etc/resolv.conf (Railway's platform resolver) so
+    # *.railway.internal hostnames actually resolve. Falls back to
+    # public DNS in the entrypoint if resolv.conf is empty.
+    resolver ${DNS_RESOLVER} valid=10s ipv6=off;
     set $upstream "${BACKEND_URL}";
 
     # Long cache for hashed assets (Vite emits content-hashed filenames).

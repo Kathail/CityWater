@@ -88,7 +88,7 @@ def openapi_spec():
             "openapi": "3.1.0",
             "info": {
                 "title": "CityWater API",
-                "version": settings.git_sha or "dev",
+                "version": settings.effective_git_sha or "dev",
             },
             "components": {"schemas": schemas},
             "paths": {},

@@ -16,6 +16,7 @@ import { AdminTenantPage } from "./features/admin/AdminTenantPage";
 import { AdminUsersPage } from "./features/admin/AdminUsersPage";
 import { AssetDetailPage } from "./features/assets/AssetDetailPage";
 import { AssetListPage } from "./features/assets/AssetListPage";
+import { DemoLoginPage } from "./features/auth/DemoLoginPage";
 import { LoginPage } from "./features/auth/LoginPage";
 import { RegisterTenantPage } from "./features/auth/RegisterTenantPage";
 import { RequireAuth } from "./features/auth/RequireAuth";
@@ -55,6 +56,7 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/demo" element={<DemoLoginPage />} />
       <Route path="/register" element={<RegisterTenantPage />} />
       <Route path="/accept-invitation/:token" element={<AcceptInvitationPage />} />
       <Route

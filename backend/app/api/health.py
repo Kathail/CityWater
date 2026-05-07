@@ -26,7 +26,7 @@ def healthz():
         log.exception("healthz: db check failed")
         db_status = "error"
         status_code = 503
-    return jsonify({"db": db_status, "version": settings.git_sha}), status_code
+    return jsonify({"db": db_status, "version": settings.effective_git_sha}), status_code
 
 
 @health_bp.get("/healthz/deep")
@@ -89,7 +89,7 @@ def healthz_deep():
 
     body = {
         "ok": overall_ok,
-        "version": settings.git_sha,
+        "version": settings.effective_git_sha,
         "environment": settings.environment,
         "checks": checks,
     }

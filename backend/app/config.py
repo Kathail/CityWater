@@ -17,7 +17,19 @@ class Settings(BaseSettings):
     database_url: str = Field(
         default="postgresql+psycopg://citywater:citywater@localhost:5432/citywater",
     )
+    # Auto-populated on Railway deployments (RAILWAY_GIT_COMMIT_SHA is
+    # injected by the platform); operators can override by setting
+    # GIT_SHA explicitly. Falls back to "dev" for local dev.
     git_sha: str = Field(default="dev")
+    railway_git_commit_sha: str = Field(default="")
+
+    @property
+    def effective_git_sha(self) -> str:
+        if self.git_sha and self.git_sha != "dev":
+            return self.git_sha
+        if self.railway_git_commit_sha:
+            return self.railway_git_commit_sha[:12]
+        return self.git_sha
     log_level: str = Field(default="INFO")
 
     @field_validator("database_url")

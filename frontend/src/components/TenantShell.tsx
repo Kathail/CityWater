@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { logout } from "../features/auth/api";
 import { ME_QUERY_KEY, useAuth } from "../features/auth/useAuth";
 import { ConflictDrawer } from "./ConflictDrawer";
+import { DemoBanner } from "./DemoBanner";
 import { Logo } from "./Logo";
 import { OfflineBanner } from "./OfflineBanner";
 
@@ -42,8 +43,12 @@ export function TenantShell() {
     </NavLink>
   );
 
+  const isDemo = tenant.slug === "demo";
+
   return (
-    <div className="min-h-screen flex bg-slate-950 text-slate-100">
+    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+      {isDemo && <DemoBanner />}
+      <div className="flex flex-1">
       <aside className="w-56 border-r border-slate-800 bg-slate-900 p-4 flex flex-col">
         <Link
           to={`/${slug}/`}
@@ -88,6 +93,7 @@ export function TenantShell() {
         <OfflineBanner onOpenConflicts={() => setConflictsOpen(true)} />
         <Outlet />
       </main>
+      </div>
       {conflictsOpen && (
         <ConflictDrawer onClose={() => setConflictsOpen(false)} />
       )}
