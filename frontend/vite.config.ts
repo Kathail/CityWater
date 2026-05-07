@@ -6,7 +6,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "prompt",
+      // autoUpdate ensures returning visitors always get the latest bundle
+      // without having to confirm an update prompt — important for the
+      // public demo flow where prompt-mode would strand them on a stale
+      // (and possibly broken) cached version of the SPA.
+      registerType: "autoUpdate",
       // Disable in dev — service workers + Vite HMR don't mix gracefully and
       // we want field testing to use the actual production-built worker.
       devOptions: { enabled: false },
@@ -47,7 +51,10 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>
-              url.pathname === "/api/v1/auth/me" ||
+              // /api/v1/auth/me deliberately *not* cached — it varies per
+              // session and stale cache from a prior unauthenticated visit
+              // can poison the next login (returning 401 to the in-app
+              // useAuth even though the user just logged in).
               url.pathname === "/api/v1/asset-classes" ||
               url.pathname === "/api/v1/tile-layers" ||
               url.pathname === "/api/v1/pacp-codes" ||
