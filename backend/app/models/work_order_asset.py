@@ -15,11 +15,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import Base
+from app.models.mixins import TenantScopedMixin
 
 WO_ASSET_ROLES: tuple[str, ...] = ("primary", "affected", "isolated_by", "witness")
 
 
-class WorkOrderAsset(Base):
+class WorkOrderAsset(Base, TenantScopedMixin):
     """M:N between work_order and asset, with a role tag.
 
     `role='primary'` is the canonical "this is THE asset for this WO" link
@@ -50,16 +51,11 @@ class WorkOrderAsset(Base):
         ForeignKey("asset.id", ondelete="RESTRICT"),
         primary_key=True,
     )
-    # Denormalised tenant_id (added in 0029_audit_hardening) so the
-    # session-level tenant filter listener applies directly to this
-    # join table — defence in depth on top of the joins through
-    # work_order/asset.
-    tenant_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("tenant.id", ondelete="RESTRICT", name="fk_work_order_asset_tenant_id_tenant"),
-        nullable=False,
-        index=True,
-    )
+    # tenant_id comes from TenantScopedMixin — that's what brings this
+    # join table under the session-level tenant filter listener. The
+    # column was denormalised onto this table in migration 0029 so the
+    # listener has something to filter by; the mixin makes the listener
+    # actually apply.
     role: Mapped[str] = mapped_column(
         String(32), nullable=False, default="affected", server_default="affected"
     )

@@ -331,6 +331,23 @@ def create_work_order():
                     )
                 )
 
+        # If a primary asset was supplied, materialise the M:N row so
+        # `_list_wo_assets` agrees with `wo.asset_id`. Without this the
+        # detail page shows "Asset: HYD-1" while the route view shows
+        # "No assets attached". The partial unique index on
+        # work_order_asset (one primary per WO) keeps this safe.
+        if asset_id is not None:
+            db.session.add(
+                WorkOrderAsset(
+                    work_order_id=wo.id,
+                    asset_id=asset_id,
+                    tenant_id=wo.tenant_id,
+                    role="primary",
+                    sequence=1,
+                    created_at=datetime.now(UTC),
+                )
+            )
+
         db.session.commit()
         db.session.refresh(wo)
         return jsonify(_wo_payload(wo)), 201
@@ -440,38 +457,42 @@ def add_wo_assets(wo_number: str):
             code="unknown_asset",
         )
 
-    # Existing memberships — skip duplicates.
-    existing_ids = set(
-        db.session.scalars(
-            select(WorkOrderAsset.asset_id).where(
-                WorkOrderAsset.work_order_id == wo.id
-            )
-        ).all()
-    )
-    next_seq = (
-        db.session.scalar(
-            select(func.coalesce(func.max(WorkOrderAsset.sequence), 0)).where(
-                WorkOrderAsset.work_order_id == wo.id
-            )
-        )
-        or 0
-    )
+    # Existing memberships — skip duplicates. Also detect whether a
+    # `primary` already exists so we can promote the first new stop
+    # to primary on a WO that doesn't have one yet (and keep
+    # wo.asset_id in sync — see WO-P0-3).
+    existing_rows = db.session.scalars(
+        select(WorkOrderAsset).where(WorkOrderAsset.work_order_id == wo.id)
+    ).all()
+    existing_ids = {r.asset_id for r in existing_rows}
+    has_primary = any(r.role == "primary" for r in existing_rows)
+    next_seq = max((r.sequence or 0) for r in existing_rows) if existing_rows else 0
 
     added = 0
+    promoted_to_primary: int | None = None
     for uid in data.asset_uids:  # preserve caller-supplied order
         a = found_uids[uid]
         if a.id in existing_ids:
             continue
         next_seq += 1
+        # First new asset on a primary-less WO is promoted to primary
+        # regardless of the caller's `role` — keeps wo.asset_id meaningful.
+        role = data.role
+        if not has_primary and promoted_to_primary is None:
+            role = "primary"
+            promoted_to_primary = a.id
         db.session.add(WorkOrderAsset(
             work_order_id=wo.id,
             asset_id=a.id,
             tenant_id=wo.tenant_id,
-            role=data.role,
+            role=role,
             sequence=next_seq,
             created_at=datetime.now(UTC),
         ))
         added += 1
+
+    if promoted_to_primary is not None and wo.asset_id is None:
+        wo.asset_id = promoted_to_primary
 
     db.session.commit()
     db.session.refresh(wo)
@@ -494,7 +515,31 @@ def remove_wo_asset(wo_number: str, asset_uid: str):
     )
     if row is None:
         raise NotFoundError(f"asset {asset_uid} not on {wo_number}")
+
+    was_primary = row.role == "primary"
     db.session.delete(row)
+
+    # If the removed row was the primary, the wo.asset_id shortcut is
+    # now stale. Pick the next-in-sequence stop and promote it (so the
+    # detail page still has *something* to display under "asset"); if
+    # there are no other stops, clear wo.asset_id so the UI reads
+    # "(no asset)" honestly. See WO-P0-3.
+    if was_primary:
+        successor = db.session.scalar(
+            select(WorkOrderAsset)
+            .where(WorkOrderAsset.work_order_id == wo.id)
+            .order_by(
+                WorkOrderAsset.sequence.asc().nullslast(),
+                WorkOrderAsset.asset_id.asc(),
+            )
+            .limit(1)
+        )
+        if successor is not None:
+            successor.role = "primary"
+            wo.asset_id = successor.asset_id
+        else:
+            wo.asset_id = None
+
     db.session.commit()
     db.session.refresh(wo)
     return jsonify(_wo_payload(wo))
