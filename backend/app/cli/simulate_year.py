@@ -487,13 +487,23 @@ def _simulate(tenant: Tenant, *, seed: int, today: datetime) -> dict[str, int]:
                 crew = rng.choice(crews) if crews and rng.random() < 0.4 else None
                 scheduled = _random_business_dt(rng, cursor)
 
-                # Status: most are completed (in the past), today's are
-                # in_progress / open, future days are open.
-                if cursor < end_day - timedelta(days=2):
+                # Status mix is layered so the WO list still shows real
+                # active work, not just a wall of "completed":
+                #   - older than 14 days  → mostly closed, a few stuck
+                #     on_hold (carryover work crews never got back to)
+                #   - 2-14 days ago       → realistic carry-over: most
+                #     done, ~15% still active in some form
+                #   - last 2 days         → still mostly active
+                #   - future              → assigned/open
+                if cursor < end_day - timedelta(days=14):
                     final = rng.choices(
-                        ["completed", "completed", "completed", "completed",
-                         "cancelled"],
-                        k=1,
+                        ["completed", "cancelled", "on_hold"],
+                        weights=[88, 7, 5],
+                    )[0]
+                elif cursor < end_day - timedelta(days=2):
+                    final = rng.choices(
+                        ["completed", "in_progress", "on_hold", "open", "cancelled"],
+                        weights=[70, 10, 8, 7, 5],
                     )[0]
                 elif cursor < end_day:
                     final = rng.choices(

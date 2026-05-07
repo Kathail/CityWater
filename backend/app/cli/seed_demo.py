@@ -724,12 +724,23 @@ def _seed() -> None:
             notes="Schedule structural rehab — Quick Rating 4.",
         )
 
+    # Task definitions seeded BEFORE the showcase SRs so `find_matching_task`
+    # has rows to match against. Order matters: previously the SRs were
+    # created first and every one came out with task_definition_id=None
+    # because the task table was empty at the time of intake.
+    from app.models import TaskDefinition
+    from app.seeds.tasks.catalog import seed_tasks
+    from app.seeds.tasks.wat_discoloured import TASK_WAT_DISCOLOURED
+
+    td = TaskDefinition(tenant_id=tenant.id, **TASK_WAT_DISCOLOURED)
+    db.session.add(td)
+    db.session.flush()  # so the catalog seed sees discoloured as existing
+    seed_tasks(db.session, tenant.id)
+
     # Service requests — assorted statuses + a true duplicate pair.
     # Match each SR to its citizen-issue task definition the same way
     # POST /api/v1/service-requests does, so the comment composer
-    # renders smart-comment chips on these showcase rows. Without this,
-    # every demo SR carried task_definition_id=None and the chips
-    # silently never showed up.
+    # renders smart-comment chips on these showcase rows.
     from app.services.tasks.match import find_matching_task
 
     def _sr(**kwargs) -> ServiceRequest:
@@ -821,19 +832,9 @@ def _seed() -> None:
         reported_at=datetime.now(UTC) - timedelta(days=2),
     )
 
-    # Task definitions — WAT-TASK-DISCOLOURED carries the rich form /
-    # prefill / canned-comments definition (the keystone proof). The
-    # consolidated catalog seeds the rest of the operator catalog
-    # idempotently and won't clobber discoloured.
-    from app.models import TaskDefinition
-    from app.seeds.tasks.catalog import seed_tasks
-    from app.seeds.tasks.wat_discoloured import TASK_WAT_DISCOLOURED
-
-    td = TaskDefinition(tenant_id=tenant.id, **TASK_WAT_DISCOLOURED)
-    db.session.add(td)
-    db.session.flush()  # so the catalog seed sees discoloured as existing
-
-    seed_tasks(db.session, tenant.id)
+    # (Task definitions are now seeded above the SR block — see the
+    # comment there. WAT-TASK-DISCOLOURED is the keystone proof; the
+    # consolidated catalog seeds the rest idempotently.)
 
     # Service areas — example maintenance districts + system polygons
     # covering the demo asset extent (~lon -76.498 .. -76.470, ~lat
