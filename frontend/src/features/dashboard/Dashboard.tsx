@@ -15,7 +15,7 @@ import { type DashboardResponse, getDashboard } from "./api";
  * Three-column desktop layout (stacks on <lg):
  *
  *   ┌───────────┬──────────────────────────┬──────────────┐
- *   │ Live feed │ Map preview              │ Cockpit      │
+ *   │ Live feed │ Map preview              │ Readout      │
  *   │           │ ─────────                │ gauges       │
  *   │ activity  │ System pulse strip       │              │
  *   │           │                          │              │

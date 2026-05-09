@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMapOverlays } from "../map/hooks";
 import type { DashTab } from "./DashboardTabs";
 
@@ -65,17 +65,28 @@ export function MapPreview({ slug, tab }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const overlaysQuery = useMapOverlays();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+    // Stay click-only — disable every other interaction handler so
+    // the operator can't accidentally pan or zoom the mini-map; the
+    // map is meant to be glanceable, not navigable. Click events still
+    // fire (we use them to drill into a marker or open the full map).
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: DARK_STYLE,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       attributionControl: false,
-      interactive: false,
+      scrollZoom: false,
+      dragPan: false,
+      dragRotate: false,
+      doubleClickZoom: false,
+      keyboard: false,
+      boxZoom: false,
     });
+    map.touchZoomRotate.disable();
     mapRef.current = map;
     map.on("load", () => {
       // Service area outlines — drawn first, sit underneath everything.
@@ -162,12 +173,57 @@ export function MapPreview({ slug, tab }: Props) {
           "circle-stroke-opacity": 0.5,
         },
       });
+
+      // Pointer cursor when hovering an interactive marker.
+      const setPointer = () => (map.getCanvas().style.cursor = "pointer");
+      const clearPointer = () => (map.getCanvas().style.cursor = "");
+      for (const id of ["wos", "srs"]) {
+        map.on("mouseenter", id, setPointer);
+        map.on("mouseleave", id, clearPointer);
+      }
     });
+
+    // Click — drill into the entity if the click landed on a marker,
+    // otherwise open the full /map page so the operator can pan/zoom
+    // freely. queryRenderedFeatures returns top-most-first; we also
+    // give SRs priority over WOs since the WO outline tends to overlap
+    // an SR pin at the same asset.
+    function onClick(e: maplibregl.MapMouseEvent) {
+      const layers = ["srs", "wos"].filter((id) => map.getLayer(id));
+      const features = layers.length ? map.queryRenderedFeatures(e.point, { layers }) : [];
+      if (features.length) {
+        const f = features[0];
+        const props = (f.properties ?? {}) as Record<string, unknown>;
+        if (f.layer.id === "wos" && props.wo_number) {
+          navigateRef.current(`/${slugRef.current}/work-orders/${String(props.wo_number)}`);
+          return;
+        }
+        if (f.layer.id === "srs" && props.sr_number) {
+          navigateRef.current(`/${slugRef.current}/service-requests/${String(props.sr_number)}`);
+          return;
+        }
+      }
+      // Empty canvas → open the full map. Preserve a default sense
+      // of where the operator is so they don't lose context.
+      navigateRef.current(`/${slugRef.current}/map`);
+    }
+    map.on("click", onClick);
+
     return () => {
+      map.off("click", onClick);
       map.remove();
       mapRef.current = null;
     };
   }, []);
+
+  // Ref the navigate + slug so the click handler (set up once at
+  // mount) always sees the latest values without re-binding.
+  const navigateRef = useRef(navigate);
+  const slugRef = useRef(slug);
+  useEffect(() => {
+    navigateRef.current = navigate;
+    slugRef.current = slug;
+  });
 
   // Push overlay data once it's loaded, fitting the view to the
   // service-area extent so the user sees the whole utility footprint.
@@ -227,16 +283,20 @@ export function MapPreview({ slug, tab }: Props) {
 
       <div className="relative aspect-[16/9] w-full">
         <div ref={containerRef} className="absolute inset-0" />
-        {/* Whole-canvas link — the map is non-interactive so a single
-            click target navigates to the full /map page. Centred CTA
-            on hover. */}
+        {/* Small "Open map" pill at the top right — sits on top of the
+            map so the operator can jump to the full /map page even
+            when hovering a marker (markers handle their own click).
+            Empty-canvas clicks already navigate to /map via the
+            click handler in the effect above, so this pill is only
+            an obvious affordance, not the only path. */}
         <Link
           to={`/${slug}/map`}
-          className="group/map absolute inset-0 z-10 flex items-center justify-center bg-transparent transition-colors"
+          className="group/map absolute right-3 top-3 z-10 flex items-baseline gap-1.5 rounded border border-signal/40 bg-slate-950/80 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-signal backdrop-blur transition-colors hover:bg-signal/15"
           aria-label="Open full map"
         >
-          <span className="rounded-full border border-signal/40 bg-slate-950/80 px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-signal opacity-0 backdrop-blur transition-opacity group-hover/map:opacity-100">
-            Open map →
+          Open map
+          <span aria-hidden className="transition-transform group-hover/map:translate-x-0.5">
+            →
           </span>
         </Link>
         {tab === "crew" && (

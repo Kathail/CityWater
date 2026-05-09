@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -309,6 +309,27 @@ def list_work_orders():
             WorkOrder.due_by < datetime.now(UTC),
             WorkOrder.status.in_(active_statuses),
         )
+
+    # `completed_on=YYYY-MM-DD` — filter to WOs whose completed_at
+    # falls on the given calendar day (server's UTC day). Used by the
+    # dashboard's throughput sparkline so each bar deep-links to the
+    # set of WOs it represents.
+    completed_on_raw = request.args.get("completed_on")
+    if completed_on_raw:
+        try:
+            day = datetime.fromisoformat(completed_on_raw).date()
+            day_start = datetime(day.year, day.month, day.day, tzinfo=UTC)
+            stmt = stmt.where(
+                WorkOrder.completed_at.isnot(None),
+                WorkOrder.completed_at >= day_start,
+                WorkOrder.completed_at < day_start + timedelta(days=1),
+            )
+        except ValueError:
+            # Bad date — silently drop the filter rather than 400.
+            # The frontend builds this URL from a known date so a
+            # malformed value here is operator URL-tampering, not a
+            # legitimate user error.
+            pass
 
     assigned_to = request.args.get("assigned_to")
     if assigned_to == "me":

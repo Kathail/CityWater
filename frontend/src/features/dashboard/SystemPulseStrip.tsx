@@ -27,7 +27,11 @@ export function SystemPulseStrip({ data, slug, tab }: Props) {
       aria-label="System pulse"
       className="grid grid-cols-1 gap-4 console-panel lg:grid-cols-[1fr_1fr_1fr]"
     >
-      <Spark throughput={data.throughput_7d} closedThisWeek={data.wo_kpis.completed_this_week} />
+      <Spark
+        throughput={data.throughput_7d}
+        closedThisWeek={data.wo_kpis.completed_this_week}
+        slug={slug}
+      />
       <AreaChips areas={data.by_area} slug={slug} />
       <CategoryMix buckets={data.wo_by_category_30d} slug={slug} tab={tab} />
     </section>
@@ -37,9 +41,11 @@ export function SystemPulseStrip({ data, slug, tab }: Props) {
 function Spark({
   throughput,
   closedThisWeek,
+  slug,
 }: {
   throughput: DashboardResponse["throughput_7d"];
   closedThisWeek: number;
+  slug: string;
 }) {
   const max = Math.max(1, ...throughput.map((d) => d.completed));
   return (
@@ -58,31 +64,36 @@ function Spark({
         aria-label="Daily completed work for the past 7 days"
       >
         {throughput.map((d, i) => {
-          // Two bars stacked: a faint full-height "track" so empty
-          // days still register visually, plus the actual filled bar
-          // on top sized to ratio of `max`.
           const ratio = max === 0 ? 0 : d.completed / max;
           const isToday = i === throughput.length - 1;
+          const dayLabel = new Date(d.date).toLocaleDateString(undefined, { weekday: "short" });
+          // Each bar links to the WO list filtered to that day's
+          // completed work — reduces "I see throughput on Wed dropped,
+          // what specifically did we close?" from a 4-click drill-down
+          // to one. Days with zero completions still link (operator
+          // sees an empty list, confirming the gap).
           return (
-            <div
+            <Link
               key={d.date}
-              className="flex flex-1 flex-col items-stretch gap-1"
-              title={`${new Date(d.date).toLocaleDateString(undefined, { weekday: "short" })}: ${d.completed} completed`}
+              to={`/${slug}/work-orders?status=completed&completed_on=${d.date}`}
+              className="group/bar flex flex-1 flex-col items-stretch gap-1"
+              title={`${dayLabel}: ${d.completed} completed`}
+              aria-label={`${dayLabel}: ${d.completed} completed work orders — open list`}
             >
-              <div className="relative flex flex-1 items-end overflow-hidden rounded-sm bg-slate-800/40">
+              <div className="relative flex flex-1 items-end overflow-hidden rounded-sm bg-slate-800/40 transition-colors group-hover/bar:bg-slate-800/70">
                 <div
                   className={`w-full rounded-sm transition-colors ${
-                    isToday ? "bg-signal" : "bg-signal/40 hover:bg-signal/70"
+                    isToday
+                      ? "bg-signal group-hover/bar:bg-cyan-200"
+                      : "bg-signal/40 group-hover/bar:bg-signal/70"
                   }`}
                   style={{ minHeight: d.completed > 0 ? "3px" : "0", height: `${ratio * 100}%` }}
                 />
               </div>
-              <span className="text-center font-mono text-[9px] uppercase text-slate-600">
-                {new Date(d.date)
-                  .toLocaleDateString(undefined, { weekday: "short" })
-                  .slice(0, 1)}
+              <span className="text-center font-mono text-[9px] uppercase text-slate-600 group-hover/bar:text-slate-300">
+                {dayLabel.slice(0, 1)}
               </span>
-            </div>
+            </Link>
           );
         })}
       </div>

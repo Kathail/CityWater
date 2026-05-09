@@ -3,7 +3,7 @@ import type { DashboardResponse } from "./api";
 import type { DashTab } from "./DashboardTabs";
 
 /**
- * Right-rail cockpit gauges. Radial SVG arcs that animate from 0 to
+ * Right-rail readout gauges. Radial SVG arcs that animate from 0 to
  * value on first paint — gives the page a moment of life on load and
  * communicates "live readout" without needing a chart library.
  *
@@ -38,12 +38,12 @@ export function CockpitGauges({ data, slug, tab }: Props) {
   const gauges = useGauges(data, slug, tab);
   return (
     <aside
-      aria-label="Cockpit"
+      aria-label="Readout"
       className="flex flex-col gap-3 console-panel p-4"
     >
       <div className="flex items-baseline justify-between border-b border-dashed border-slate-800 pb-2.5">
         <h2 className="section-label-strong">
-          Cockpit
+          Readout
         </h2>
         <span className="section-label">
           {tab === "supervisor" ? "Triage" : tab === "crew" ? "Today" : "30d"}

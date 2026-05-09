@@ -288,26 +288,36 @@ def _recent_activity(since: datetime) -> list[dict[str, Any]]:
     # (one query per entity type, regardless of row count).
     code_lookup = _activity_code_lookup(comment_rows, audit_rows)
 
+    def _coerce_id(v: Any) -> int | None:
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+
     items: list[dict[str, Any]] = []
     for c in comment_rows:
+        canon = _canon_entity_type(c.entity_type)
+        eid = _coerce_id(c.entity_id)
         items.append(
             {
                 "kind": "comment",
                 "occurred_at": c.created_at.isoformat(),
-                "entity_type": c.entity_type,
-                "entity_code": code_lookup.get((c.entity_type, c.entity_id)),
+                "entity_type": canon,
+                "entity_code": code_lookup.get((canon, eid)) if eid is not None else None,
                 "summary": c.body[:140],
             }
         )
     for ev in audit_rows:
+        canon = _canon_entity_type(ev.entity_type)
+        eid = _coerce_id(ev.entity_id)
         before = (ev.before or {}).get("status") if isinstance(ev.before, dict) else None
         after = (ev.after or {}).get("status") if isinstance(ev.after, dict) else None
         items.append(
             {
                 "kind": "transition",
                 "occurred_at": ev.occurred_at.isoformat(),
-                "entity_type": ev.entity_type,
-                "entity_code": code_lookup.get((ev.entity_type, ev.entity_id)),
+                "entity_type": canon,
+                "entity_code": code_lookup.get((canon, eid)) if eid is not None else None,
                 "summary": (f"{before} → {after}" if before and after else ev.action),
             }
         )
@@ -315,14 +325,40 @@ def _recent_activity(since: datetime) -> list[dict[str, Any]]:
     return items[:_ACTIVITY_LIMIT]
 
 
+# Comment.entity_type uses snake_case ("work_order"); AuditLog uses
+# the SQLAlchemy class name ("WorkOrder"). Normalise to snake_case
+# everywhere downstream (entity_code lookup + the JSON response) so
+# the frontend only sees one shape.
+_ENTITY_TYPE_CANONICAL: dict[str, str] = {
+    "work_order": "work_order",
+    "WorkOrder": "work_order",
+    "service_request": "service_request",
+    "ServiceRequest": "service_request",
+    "inspection": "inspection",
+    "Inspection": "inspection",
+}
+
+
+def _canon_entity_type(t: str) -> str:
+    return _ENTITY_TYPE_CANONICAL.get(t, t)
+
+
 def _activity_code_lookup(comment_rows, audit_rows) -> dict[tuple[str, int], str]:
-    """Batch-resolve (entity_type, entity_id) → human code for every
-    activity row. One SELECT per entity type, regardless of row count.
-    Tenant scoping comes from the session listener (all three are
-    TenantScopedMixin)."""
+    """Batch-resolve (canonical entity_type, entity_id) → human code
+    for every activity row. One SELECT per entity type, regardless of
+    row count. Tenant scoping comes from the session listener (all
+    three are TenantScopedMixin)."""
+    # AuditLog stores entity_id as a string (it's a generic table that
+    # also tracks non-bigint entities); Comment stores it as bigint.
+    # Coerce to int for the lookup; skip rows whose id isn't numeric
+    # (no way to find them in the typed entity tables anyway).
     by_type: dict[str, set[int]] = {}
     for r in (*comment_rows, *audit_rows):
-        by_type.setdefault(r.entity_type, set()).add(r.entity_id)
+        try:
+            eid = int(r.entity_id)
+        except (TypeError, ValueError):
+            continue
+        by_type.setdefault(_canon_entity_type(r.entity_type), set()).add(eid)
 
     out: dict[tuple[str, int], str] = {}
 

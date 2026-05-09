@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
   Link,
@@ -11,6 +11,7 @@ import {
 } from "react-router-dom";
 import { logout } from "../features/auth/api";
 import { useAuth } from "../features/auth/useAuth";
+import { type DashboardResponse, getDashboard } from "../features/dashboard/api";
 import { AppFooter } from "./AppFooter";
 import { ConflictDrawer } from "./ConflictDrawer";
 import { DemoBanner } from "./DemoBanner";
@@ -35,6 +36,21 @@ export function TenantShell() {
   const params = useParams();
   const [conflictsOpen, setConflictsOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+
+  // Live count badges for the nav. Reuses the dashboard's payload —
+  // already polled every 60s for the home page, so the cache hit is
+  // free everywhere else. `enabled: !!user` keeps this query from
+  // firing before the auth state resolves (and before the early
+  // return below), which would otherwise trip
+  // react-hooks/rules-of-hooks.
+  const dash = useQuery<DashboardResponse, Error>({
+    queryKey: ["dashboard"],
+    queryFn: getDashboard,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    retry: false,
+    enabled: !!user && !!tenant,
+  });
 
   const signOut = useMutation({
     mutationFn: logout,
@@ -77,15 +93,18 @@ export function TenantShell() {
   }
   const isAdmin = user.roles.some((r) => r.code === "admin");
 
+  const woOpen = dash.data?.wo_kpis.open ?? null;
+  const srNew = dash.data?.sr_kpis.new ?? null;
+
   // Operations-console nav: signal-cyan rail on active, monospace
   // section labels for grouping. Tighter padding than before so more
   // links fit without scroll on small screens.
-  const navLink = (to: string, label: string) => (
+  const navLink = (to: string, label: string, count: number | null = null) => (
     <NavLink
       to={to}
       end={to === `/${slug}/`}
       className={({ isActive }) =>
-        `relative block rounded-sm px-3 py-1 text-[13px] transition-colors ${
+        `relative flex items-center gap-2 rounded-sm px-3 py-1 text-[13px] transition-colors ${
           isActive
             ? "bg-signal/10 text-signal"
             : "text-slate-300 hover:bg-slate-900 hover:text-slate-100"
@@ -100,7 +119,16 @@ export function TenantShell() {
               className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-sm bg-signal"
             />
           )}
-          {label}
+          <span className="flex-1">{label}</span>
+          {count !== null && count > 0 && (
+            <span
+              className={`font-mono text-[10px] tabular-nums ${
+                isActive ? "text-signal/80" : "text-slate-500"
+              }`}
+            >
+              {count}
+            </span>
+          )}
         </>
       )}
     </NavLink>
@@ -135,8 +163,8 @@ export function TenantShell() {
       <nav className="flex flex-col gap-0">
         {navLink(`/${slug}/`, "Home")}
         {navLink(`/${slug}/map`, "Map")}
-        {navLink(`/${slug}/work-orders`, "Work orders")}
-        {navLink(`/${slug}/service-requests`, "Service requests")}
+        {navLink(`/${slug}/work-orders`, "Work orders", woOpen)}
+        {navLink(`/${slug}/service-requests`, "Service requests", srNew)}
         {navLink(`/${slug}/inspections`, "Inspections")}
         {navLink(`/${slug}/assets`, "Assets")}
       </nav>
