@@ -107,11 +107,17 @@ export function WorkOrderListPage() {
   const explicitStatus = (search.get("status") as WoStatus) || undefined;
   const statusIn = !explicitStatus && scope === "active" ? ACTIVE_STATUSES.join(",") : undefined;
 
+  // Asset-scoped view comes from /assets/<uid>'s "View all" link. Only
+  // applied when ?new=1 isn't set (which is the create-WO prefill flow,
+  // where asset_uid is a *default* for the new WO, not a list filter).
+  const filterAssetUid = search.get("new") === "1" ? undefined : search.get("asset_uid") || undefined;
+
   const params: WorkOrderListParams = {
     status: explicitStatus,
     status_in: statusIn,
     overdue: overdueOnly ? "1" : undefined,
     assigned_to: scope === "mine" ? "me" : search.get("assigned_to") || undefined,
+    asset_uid: filterAssetUid,
     q: search.get("q") || undefined,
     page: Number(search.get("page") ?? 1),
     page_size: view === "kanban" ? 200 : 50,
@@ -188,6 +194,26 @@ export function WorkOrderListPage() {
         <SummaryBar.Stat label="Total in dataset" value={woQuery.data?.total ?? 0} tone="muted" />
       </SummaryBar>
 
+      {filterAssetUid && (
+        <div className="flex items-center gap-2 rounded border border-signal/30 bg-signal/5 px-3 py-2 text-xs">
+          <span className="section-label">Filtered by asset</span>
+          <Link
+            to={`/${slug}/assets/${filterAssetUid}`}
+            className="font-mono text-slate-100 hover:text-cyan-200 hover:underline"
+          >
+            {filterAssetUid}
+          </Link>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => setParam("asset_uid", null)}
+            className="rounded border border-slate-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-slate-400 hover:border-slate-500 hover:text-slate-200"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {createOpen && (
         <CreateWorkOrderDialog onClose={handleCloseCreate} defaults={newDefaults ?? undefined} />
       )}
@@ -216,6 +242,25 @@ export function WorkOrderListPage() {
                 ))}
               </select>
             </label>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const input = e.currentTarget.elements.namedItem("asset_uid_input") as HTMLInputElement;
+                setParam("asset_uid", input.value || null);
+              }}
+              className="block"
+            >
+              <label className="block">
+                <span className="text-xs text-slate-300">Asset UID</span>
+                <input
+                  name="asset_uid_input"
+                  defaultValue={filterAssetUid ?? ""}
+                  onBlur={(e) => setParam("asset_uid", e.target.value || null)}
+                  placeholder="e.g. HYD-00001"
+                  className="mt-1 w-44 rounded border border-slate-700 px-2 py-1 text-sm"
+                />
+              </label>
+            </form>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -326,7 +371,18 @@ export function WorkOrderListPage() {
                           {w.priority}
                         </StatusPill>
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs">{w.asset_uid ?? <Dash />}</td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {w.asset_uid ? (
+                          <Link
+                            to={`/${slug}/assets/${w.asset_uid}`}
+                            className="text-slate-200 hover:text-cyan-200 hover:underline"
+                          >
+                            {w.asset_uid}
+                          </Link>
+                        ) : (
+                          <Dash />
+                        )}
+                      </td>
                       <td className="px-3 py-2">
                         {w.due_by ? <DueCell iso={w.due_by} overdue={overdue} /> : <Dash />}
                       </td>

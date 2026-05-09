@@ -1,14 +1,22 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Alert } from "../../components/Alert";
 import { Button } from "../../components/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DetailHeader } from "../../components/DetailHeader";
 import { ErrorState, LoadingState } from "../../components/States";
+import { StatusPill } from "../../components/StatusPill";
 import { UnsavedChangesGuard } from "../../components/UnsavedChangesGuard";
+import { formatDate, formatDateTime } from "../../lib/format";
 import { translateApiError } from "../../lib/translateApiError";
+import { listInspections } from "../inspections/api";
+import { listServiceRequests } from "../service-requests/api";
+import { SR_STATUS_TONE } from "../service-requests/tones";
 import { AreaChips } from "../tasks/AreaChips";
+import { CreateWorkOrderDialog } from "../work-orders/CreateWorkOrderDialog";
+import { listWorkOrders } from "../work-orders/api";
+import { WO_STATUS_TONE } from "../work-orders/tones";
 import { deleteAsset, updateAsset, type AssetOut, type AssetUpdateInput } from "./api";
 import { useAsset } from "./hooks";
 
@@ -70,6 +78,7 @@ export function AssetDetailPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [createWoOpen, setCreateWoOpen] = useState(false);
 
   useEffect(() => {
     if (assetQuery.data) setForm(toFormState(assetQuery.data));
@@ -122,7 +131,7 @@ export function AssetDetailPage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl space-y-4">
+    <div className="p-4 sm:p-8 space-y-6 max-w-5xl">
       <UnsavedChangesGuard dirty={dirty} />
       <DetailHeader
         backTo={`/${params.slug}/assets`}
@@ -131,18 +140,37 @@ export function AssetDetailPage() {
         subtitle={`${asset.class_code} · ${asset.domain}`}
         meta={<AreaChips areas={asset.areas} domain={asset.domain} />}
         trailing={
-          <Button
-            variant="danger"
-            onClick={() => {
-              setDeleteError(null);
-              setDeleteOpen(true);
-            }}
-            disabled={remove.isPending}
-          >
-            Delete
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to={`/${params.slug}/map?focus=${encodeURIComponent(asset.asset_uid)}`}
+              className="btn-ghost"
+            >
+              Show on map
+            </Link>
+            <Button onClick={() => setCreateWoOpen(true)}>Create work order</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setDeleteError(null);
+                setDeleteOpen(true);
+              }}
+              disabled={remove.isPending}
+            >
+              Delete
+            </Button>
+          </div>
         }
       />
+
+      <RelatedWork slug={params.slug!} assetUid={asset.asset_uid} />
+
+      {createWoOpen && (
+        <CreateWorkOrderDialog
+          onClose={() => setCreateWoOpen(false)}
+          defaults={{ asset_uid: asset.asset_uid }}
+        />
+      )}
+
       {deleteOpen && (
         <ConfirmDialog
           title={`Soft-delete ${asset.asset_uid}?`}
@@ -159,6 +187,7 @@ export function AssetDetailPage() {
         onSubmit={onSubmit}
         className="rounded-lg border border-slate-800 bg-slate-900 p-4 space-y-3"
       >
+        <h2 className="section-label-strong">Properties</h2>
         {errorMessage && <Alert>{errorMessage}</Alert>}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Material">
@@ -257,11 +286,197 @@ export function AssetDetailPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="text-xs text-slate-300">{label}</span>
       <div className="mt-1">{children}</div>
     </label>
   );
+}
+
+/**
+ * Three-column strip of recent activity tied to this asset. Each panel
+ * pulls top 5 from the corresponding list endpoint with `?asset_uid=`,
+ * shows a one-line row per item, and footer-links to the filtered list
+ * for the full history. Empty states intentionally encourage the next
+ * action ("No work orders — Create one") rather than just saying
+ * "none" — the asset detail page is where operators land *because*
+ * they're triaging a problem with this asset.
+ */
+function RelatedWork({ slug, assetUid }: { slug: string; assetUid: string }) {
+  const woQuery = useQuery({
+    queryKey: ["asset-related", "wo", assetUid],
+    queryFn: () =>
+      listWorkOrders({
+        asset_uid: assetUid,
+        status_in: "open,assigned,in_progress,on_hold",
+        page_size: 5,
+      }),
+  });
+  const insQuery = useQuery({
+    queryKey: ["asset-related", "ins", assetUid],
+    queryFn: () => listInspections({ asset_uid: assetUid, page_size: 5 }),
+  });
+  const srQuery = useQuery({
+    queryKey: ["asset-related", "sr", assetUid],
+    queryFn: () => listServiceRequests({ asset_uid: assetUid, page_size: 5 }),
+  });
+
+  return (
+    <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <Panel
+        title="Open work orders"
+        count={woQuery.data?.total}
+        viewAllTo={`/${slug}/work-orders?asset_uid=${encodeURIComponent(assetUid)}`}
+        loading={woQuery.isLoading}
+      >
+        {woQuery.data?.items.length === 0 ? (
+          <Empty label="No open work" />
+        ) : (
+          <ul className="divide-y divide-slate-800/70">
+            {woQuery.data?.items.map((w) => (
+              <li key={w.wo_number} className="py-2">
+                <Link
+                  to={`/${slug}/work-orders/${w.wo_number}`}
+                  className="block group hover:text-slate-100"
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-mono text-xs text-slate-400 group-hover:text-cyan-200">
+                      {w.wo_number}
+                    </span>
+                    <StatusPill tone={WO_STATUS_TONE[w.status]} dot>
+                      {w.status.replace(/_/g, " ")}
+                    </StatusPill>
+                  </div>
+                  <div className="mt-0.5 truncate text-sm text-slate-200">{w.title}</div>
+                  {w.due_by && (
+                    <div className="mt-0.5 text-[11px] text-slate-500">
+                      due {formatDate(w.due_by)}
+                    </div>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      <Panel
+        title="Recent inspections"
+        count={insQuery.data?.total}
+        viewAllTo={`/${slug}/inspections?asset_uid=${encodeURIComponent(assetUid)}`}
+        loading={insQuery.isLoading}
+      >
+        {insQuery.data?.items.length === 0 ? (
+          <Empty label="No inspections" />
+        ) : (
+          <ul className="divide-y divide-slate-800/70">
+            {insQuery.data?.items.map((i) => (
+              <li key={i.inspection_number} className="py-2">
+                <Link
+                  to={`/${slug}/inspections/${i.inspection_number}`}
+                  className="block group hover:text-slate-100"
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-mono text-xs text-slate-400 group-hover:text-cyan-200">
+                      {i.inspection_number}
+                    </span>
+                    <StatusPill
+                      tone={i.pass === false ? "danger" : i.pass === true ? "success" : "muted"}
+                      dot
+                    >
+                      {i.pass === false ? "fail" : i.pass === true ? "pass" : "—"}
+                    </StatusPill>
+                  </div>
+                  <div className="mt-0.5 truncate text-sm text-slate-200">
+                    {i.kind.replace(/_/g, " ")}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-500">
+                    {formatDateTime(i.performed_at)}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      <Panel
+        title="Service requests"
+        count={srQuery.data?.total}
+        viewAllTo={`/${slug}/service-requests?asset_uid=${encodeURIComponent(assetUid)}`}
+        loading={srQuery.isLoading}
+      >
+        {srQuery.data?.items.length === 0 ? (
+          <Empty label="No requests" />
+        ) : (
+          <ul className="divide-y divide-slate-800/70">
+            {srQuery.data?.items.map((s) => (
+              <li key={s.sr_number} className="py-2">
+                <Link
+                  to={`/${slug}/service-requests/${s.sr_number}`}
+                  className="block group hover:text-slate-100"
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-mono text-xs text-slate-400 group-hover:text-cyan-200">
+                      {s.sr_number}
+                    </span>
+                    <StatusPill tone={SR_STATUS_TONE[s.status]} dot>
+                      {s.status}
+                    </StatusPill>
+                  </div>
+                  <div className="mt-0.5 truncate text-sm text-slate-200">
+                    {s.category.replace(/_/g, " ")}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-500">
+                    {formatDateTime(s.reported_at)}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+    </section>
+  );
+}
+
+function Panel({
+  title,
+  count,
+  viewAllTo,
+  loading,
+  children,
+}: {
+  title: string;
+  count?: number;
+  viewAllTo: string;
+  loading: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+      <div className="mb-2 flex items-baseline justify-between border-b border-dashed border-slate-800 pb-2">
+        <h3 className="section-label-strong">{title}</h3>
+        {typeof count === "number" && count > 0 && (
+          <span className="font-mono text-[10px] tabular-nums text-slate-500">{count}</span>
+        )}
+      </div>
+      {loading ? (
+        <p className="py-2 text-xs text-slate-500">Loading…</p>
+      ) : (
+        children
+      )}
+      <div className="mt-3 border-t border-dashed border-slate-800 pt-2 text-right">
+        <Link to={viewAllTo} className="text-[11px] uppercase tracking-wider text-slate-500 hover:text-signal">
+          View all →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function Empty({ label }: { label: string }) {
+  return <p className="py-2 text-xs text-slate-500">{label}.</p>;
 }

@@ -49,12 +49,19 @@ export function ServiceRequestListPage() {
   const queryClient = useQueryClient();
 
   // Default scope: "needs attention" — anything new or triaged.
-  const scope = (search.get("scope") as "attention" | "all") ?? "attention";
+  // Exception: when filtered by asset, show all history by default since
+  // the user's intent is "everything that's ever happened on this
+  // asset", not just the active queue.
+  const assetUidFilter = search.get("asset_uid") || undefined;
+  const scope =
+    (search.get("scope") as "attention" | "all") ?? (assetUidFilter ? "all" : "attention");
 
   const params: ServiceRequestListParams = {
     status: (search.get("status") as SrStatus) || undefined,
     category: (search.get("category") as SrCategory) || undefined,
     domain: (search.get("domain") as SrDomain) || undefined,
+    asset_uid: search.get("asset_uid") || undefined,
+    since: search.get("since") || undefined,
     q: search.get("q") || undefined,
     page: Number(search.get("page") ?? 1),
     page_size: 50,
@@ -229,10 +236,40 @@ export function ServiceRequestListPage() {
           label="High / emergency"
           value={summary.high}
           tone={summary.high > 0 ? "danger" : "muted"}
+          to={summary.high > 0 ? "?priority=emergency" : undefined}
         />
-        <SummaryBar.Stat label="Reported today" value={summary.newToday} tone="muted" />
+        <SummaryBar.Stat
+          label="Reported today"
+          value={summary.newToday}
+          tone={summary.newToday > 0 ? "default" : "muted"}
+          to={
+            summary.newToday > 0
+              ? `?since=${new Date(new Date().setHours(0, 0, 0, 0)).toISOString()}`
+              : undefined
+          }
+        />
         <SummaryBar.Stat label="Total" value={query.data?.total ?? 0} tone="muted" />
       </SummaryBar>
+
+      {assetUidFilter && (
+        <div className="flex items-center gap-2 rounded border border-signal/30 bg-signal/5 px-3 py-2 text-xs">
+          <span className="section-label">Filtered by asset</span>
+          <Link
+            to={`/${slug}/assets/${assetUidFilter}`}
+            className="font-mono text-slate-100 hover:text-cyan-200 hover:underline"
+          >
+            {assetUidFilter}
+          </Link>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => setParam("asset_uid", null)}
+            className="rounded border border-slate-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-slate-400 hover:border-slate-500 hover:text-slate-200"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-end gap-3 text-sm">
         <ScopeTabs

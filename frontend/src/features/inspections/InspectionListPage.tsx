@@ -282,7 +282,18 @@ export function InspectionListPage() {
                   </Link>
                 </td>
                 <td className="px-3 py-2 text-slate-100">{KIND_LABEL[i.kind] ?? i.kind}</td>
-                <td className="px-3 py-2 font-mono text-xs">{i.asset_uid ?? <Dash />}</td>
+                <td className="px-3 py-2 font-mono text-xs">
+                  {i.asset_uid ? (
+                    <Link
+                      to={`/${slug}/assets/${i.asset_uid}`}
+                      className="text-slate-200 hover:text-cyan-200 hover:underline"
+                    >
+                      {i.asset_uid}
+                    </Link>
+                  ) : (
+                    <Dash />
+                  )}
+                </td>
                 <td className="px-3 py-2">{formatDateTime(i.performed_at)}</td>
                 <td className="px-3 py-2">
                   {i.overall_condition === null ? (

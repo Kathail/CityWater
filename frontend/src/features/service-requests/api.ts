@@ -86,6 +86,7 @@ export interface ServiceRequestListParams {
   status?: SrStatus;
   category?: SrCategory;
   domain?: SrDomain;
+  asset_uid?: string;
   since?: string;
   q?: string;
   page?: number;
