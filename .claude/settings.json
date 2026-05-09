@@ -15,6 +15,7 @@
       "Bash(uv run pytest -q --tb=no)",
       "Bash(uv run pytest --co -q)",
       "Bash(uv run pytest -q --co)",
+      "Bash(npx vitest)",
       "Bash(npx vitest run)",
       "Bash(npx tsc -b)",
       "Bash(npx tsc --noEmit)",
