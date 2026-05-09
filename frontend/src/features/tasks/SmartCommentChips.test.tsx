@@ -35,7 +35,7 @@ describe("SmartCommentChips", () => {
     expect(screen.getByText("No condition — always shown.")).toBeInTheDocument();
   });
 
-  it("renders missing variables as ?", () => {
+  it("disables chips with unresolved variables and surfaces the missing field", () => {
     render(
       <SmartCommentChips
         smartComments={COMMENTS}
@@ -43,7 +43,27 @@ describe("SmartCommentChips", () => {
         onPick={() => {}}
       />,
     );
+    // The rendered text still appears (so the operator sees what the
+    // suggestion *will* say once they fill the gap) but the chip is
+    // disabled and a "fill min" caption surfaces the missing field.
     expect(screen.getByText("Cleared after ? min.")).toBeInTheDocument();
+    expect(screen.getByText("fill min")).toBeInTheDocument();
+    const chip = screen.getByTitle(/Fill min above/);
+    expect(chip.getAttribute("aria-disabled")).toBe("true");
+    expect(chip.tagName.toLowerCase()).toBe("span");
+  });
+
+  it("does not call onPick when a disabled chip is clicked", () => {
+    const onPick = vi.fn();
+    render(
+      <SmartCommentChips
+        smartComments={COMMENTS}
+        taskData={{ outcome: "cleared" }}
+        onPick={onPick}
+      />,
+    );
+    fireEvent.click(screen.getByText("Cleared after ? min."));
+    expect(onPick).not.toHaveBeenCalled();
   });
 
   it("calls onPick with the rendered text when tapped", () => {

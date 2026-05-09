@@ -387,3 +387,27 @@ export function interpolate(template: string, ctx: unknown): string {
     formatValue(resolve(path.split("."), ctx)),
   );
 }
+
+/** Like `interpolate`, but also reports which `{path}` placeholders did
+ * not resolve. Callers (smart-comment chips, checklist drafts) use this
+ * to disable a suggestion until the operator fills the missing fields,
+ * rather than offering a "Cleared after ? min." string for one-tap
+ * insertion into the audit feed. */
+export function interpolateWithMissing(
+  template: string,
+  ctx: unknown,
+): { text: string; missing: string[] } {
+  const missing: string[] = [];
+  const seen = new Set<string>();
+  const text = template.replace(VAR_RE, (_match, path: string) => {
+    const resolved = resolve(path.split("."), ctx);
+    if (resolved === null || resolved === undefined) {
+      if (!seen.has(path)) {
+        seen.add(path);
+        missing.push(path);
+      }
+    }
+    return formatValue(resolved);
+  });
+  return { text, missing };
+}
