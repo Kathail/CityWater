@@ -23,7 +23,15 @@ export function ChecklistDraft({ task, taskData, onPick }: Props) {
     for (const step of steps) {
       if (!step.comment_when_checked) continue;
       if (!isStepChecked(step, taskData)) continue;
-      out.push(interpolate(step.comment_when_checked, taskData));
+      const rendered = interpolate(step.comment_when_checked, taskData);
+      // If any `{var}` couldn't resolve, `interpolate` substitutes "?".
+      // Posting "Cleared ?." is the artefact we keep finding in the
+      // activity feed — operators tick steps faster than they fill the
+      // numeric fields. Drop the line so the draft only carries
+      // sentences whose data is actually present; the operator can
+      // type a free-text addendum if a missing fact is load-bearing.
+      if (rendered.includes("?")) continue;
+      out.push(rendered);
     }
     return out;
   }, [task, taskData]);

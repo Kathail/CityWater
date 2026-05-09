@@ -46,11 +46,15 @@ export function KpiHero({ data, slug }: Props) {
             { to: `/${slug}/work-orders?new=1`, label: "+ New WO" },
           ]}
         />
+        {/* Overdue means due_by has passed and the WO is still active.
+            Stale (open >= 30d) is a separate concept — it lives in the
+            summary strip below so the supervisor doesn't read both
+            numbers as the same metric. */}
         <KpiTile
           to={`/${slug}/work-orders?overdue=1`}
           label="Overdue"
           value={wo.overdue}
-          sub={wo.stale_open ? `${wo.stale_open} stale 30d+` : "all on time"}
+          sub={wo.overdue > 0 ? "past due_by" : "all on time"}
           accent={wo.overdue > 0 ? "red" : "neutral"}
           quickActions={
             wo.overdue > 0
@@ -82,8 +86,8 @@ export function KpiHero({ data, slug }: Props) {
         className="flex flex-wrap items-stretch divide-x divide-slate-800 overflow-hidden rounded-md border border-slate-800 bg-slate-900/60"
       >
         <SummaryCell
-          icon="✓"
-          iconClass="text-emerald-400"
+          icon={completionIcon(wo.completion_rate_30d)}
+          iconClass={completionIconClass(wo.completion_rate_30d)}
           label="Completion 30d"
           value={pctOrDash(wo.completion_rate_30d)}
           tone={completionTone(wo.completion_rate_30d)}
@@ -107,6 +111,20 @@ export function KpiHero({ data, slug }: Props) {
           label="Hours logged this week"
           value={`${wo.hours_this_week.toFixed(1)} h`}
         />
+        {/* Stale ≥ 30d open. A separate cell instead of a sub-line on
+            the Overdue tile so the two distinct concepts read as
+            distinct metrics. Only renders when there's actually
+            something to surface. */}
+        {wo.stale_open > 0 && (
+          <SummaryCell
+            icon="◷"
+            iconClass="text-amber-400"
+            label="Stale 30d+"
+            value={String(wo.stale_open)}
+            tone="text-amber-200"
+            to={`/${slug}/work-orders?scope=active&stale=1`}
+          />
+        )}
       </div>
     </section>
   );
@@ -247,9 +265,25 @@ function pctOrDash(rate: number | null): string {
 
 function completionTone(rate: number | null): string {
   if (rate === null) return "text-slate-100";
+  // Completion rate = completed_30d / scheduled_30d. >= 1.0 means the
+  // team is closing faster than new work is scheduled — burning down
+  // backlog. Surface it with a brighter tone than steady-state green
+  // so a supervisor can spot "we're catching up" at a glance.
+  if (rate >= 1.0) return "text-emerald-200";
   if (rate >= 0.8) return "text-emerald-300";
   if (rate >= 0.5) return "text-amber-300";
   return "text-red-300";
+}
+
+/** Glyph reflects burn-down state: ↓ when completing faster than intake. */
+function completionIcon(rate: number | null): string {
+  if (rate !== null && rate >= 1.0) return "↓";
+  return "✓";
+}
+
+function completionIconClass(rate: number | null): string {
+  if (rate !== null && rate >= 1.0) return "text-emerald-300";
+  return "text-emerald-400";
 }
 
 function fmtHours(h: number | null): string {

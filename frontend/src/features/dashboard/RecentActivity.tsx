@@ -17,10 +17,10 @@ import type { DashboardResponse } from "./api";
  * - Items still group by day (Today / Yesterday / Earlier) so recency
  *   is always available without per-row timestamp parsing.
  *
- * Note: activity items carry only the internal numeric `entity_id`,
- * not the human-readable wo_number/sr_number/inspection_number. Per
- * CLAUDE.md hard rule, we don't expose internal IDs in URLs, so the
- * row links to the entity-type list page rather than the detail page.
+ * Backend resolves the internal id → human-readable code (`wo_number`,
+ * `sr_number`, `inspection_number`) and ships it on each row, so we
+ * deep-link into the entity detail page. When `entity_code` is null
+ * (entity soft-deleted, etc.) we fall back to the list page.
  */
 
 const ENTITY_CHIP: Record<"wo" | "sr" | "ins", string> = {
@@ -81,7 +81,7 @@ export function RecentActivity({
 }
 
 function ActivityRow({ item, slug }: ItemProps) {
-  const meta = entityMeta(slug, item.entity_type);
+  const meta = entityMeta(slug, item.entity_type, item.entity_code);
   const kind =
     item.kind === "comment" || item.kind === "transition"
       ? KIND_CHIP[item.kind]

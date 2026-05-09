@@ -26,21 +26,41 @@ export function fmtHours(h: number): string {
   return rem === 0 ? `${d}d` : `${d}d ${rem}h`;
 }
 
-/** Map a backend entity_type string to a short display label and route. */
+/**
+ * Map a backend entity_type string to a short display label and route.
+ *
+ * `code` deep-links to the entity detail page (`/work-orders/WO-…`),
+ * which is the row's preferred destination. When the backend can't
+ * resolve the code (entity soft-deleted, etc.) we fall back to the
+ * entity's list page so the row still navigates somewhere sensible.
+ */
 export function entityMeta(
   slug: string,
   t: string,
+  code?: string | null,
 ): { label: string; href: string; tone: "wo" | "sr" | "ins" } {
   switch (t) {
     case "work_order":
     case "WorkOrder":
-      return { label: "WO", href: `/${slug}/work-orders`, tone: "wo" };
+      return {
+        label: "WO",
+        href: code ? `/${slug}/work-orders/${code}` : `/${slug}/work-orders`,
+        tone: "wo",
+      };
     case "service_request":
     case "ServiceRequest":
-      return { label: "SR", href: `/${slug}/service-requests`, tone: "sr" };
+      return {
+        label: "SR",
+        href: code ? `/${slug}/service-requests/${code}` : `/${slug}/service-requests`,
+        tone: "sr",
+      };
     case "inspection":
     case "Inspection":
-      return { label: "INS", href: `/${slug}/inspections`, tone: "ins" };
+      return {
+        label: "INS",
+        href: code ? `/${slug}/inspections/${code}` : `/${slug}/inspections`,
+        tone: "ins",
+      };
     default:
       return { label: t, href: `/${slug}/`, tone: "wo" };
   }

@@ -25,8 +25,13 @@ const PRIORITY_BAR: Record<string, { bg: string }> = {
   high: { bg: "bg-amber-500" },
   normal: { bg: "bg-blue-500" },
   low: { bg: "bg-slate-500" },
+  // Catch-all for any priority outside the canonical four — keeps the
+  // bar+legend totals reconciled if a tenant has a lingering legacy
+  // value (e.g. "medium") instead of dropping it from the bar but
+  // still counting it in the total.
+  other: { bg: "bg-slate-700" },
 };
-const PRIORITY_ORDER = ["emergency", "high", "normal", "low"];
+const PRIORITY_ORDER = ["emergency", "high", "normal", "low", "other"];
 
 export function SystemPulse({
   srKpis,
@@ -41,10 +46,20 @@ export function SystemPulse({
   completedThisWeek: number;
   slug: string;
 }) {
-  const total = srBuckets.reduce((s, b) => s + b.count, 0);
-  const sortedBuckets = [...srBuckets].sort(
-    (a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority),
-  );
+  // Fold any priority outside the canonical four into a single "other"
+  // bucket so the rendered bar + legend always reconcile with `total`.
+  // Was: `total = sum(srBuckets)` but the bar filtered out unknown
+  // priorities → bar+legend summed to less than the displayed total.
+  const canonicalPriorities = new Set(PRIORITY_ORDER);
+  const merged = new Map<string, number>();
+  for (const b of srBuckets) {
+    const key = canonicalPriorities.has(b.priority) ? b.priority : "other";
+    merged.set(key, (merged.get(key) ?? 0) + b.count);
+  }
+  const sortedBuckets = Array.from(merged.entries())
+    .map(([priority, count]) => ({ priority, count }))
+    .sort((a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority));
+  const total = sortedBuckets.reduce((s, b) => s + b.count, 0);
   const max = Math.max(1, ...throughput.map((d) => d.completed));
 
   return (
@@ -160,6 +175,10 @@ export function SystemPulse({
           <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs sm:grid-cols-4">
             {PRIORITY_ORDER.map((p) => {
               const count = sortedBuckets.find((b) => b.priority === p)?.count ?? 0;
+              // Skip the "other" bucket entirely when empty — it's a
+              // catch-all that shouldn't add visual noise unless there
+              // actually is something out-of-canon to surface.
+              if (p === "other" && count === 0) return null;
               const meta = PRIORITY_BAR[p];
               return (
                 <li key={p}>

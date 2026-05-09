@@ -19,6 +19,7 @@ from app.models import (
     Asset,
     AuditLog,
     Comment,
+    Inspection,
     ServiceArea,
     ServiceRequest,
     WorkOrder,
@@ -27,6 +28,12 @@ from app.models import (
 )
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api/v1/dashboard")
+
+# Single source of truth for "WO is still alive" — matches the list
+# page's `?scope=active` filter (work_orders.py:306) so the dashboard's
+# `open` KPI lands on a list whose total count matches the tile.
+# `on_hold` counts: a paused WO is still work the team owns.
+_WO_OPEN_STATUSES: tuple[str, ...] = ("open", "assigned", "in_progress", "on_hold")
 
 
 @dashboard_bp.get("")
@@ -54,37 +61,55 @@ def get_dashboard():
 
 
 def _wo_kpis(now: datetime, week_ago: datetime, month_ago: datetime) -> dict[str, Any]:
-    open_count = (
-        db.session.scalar(
-            select(func.count()).select_from(WorkOrder).where(WorkOrder.status.in_(("open", "assigned", "in_progress")))
-        )
-        or 0
-    )
-    in_progress = (
-        db.session.scalar(select(func.count()).select_from(WorkOrder).where(WorkOrder.status == "in_progress")) or 0
-    )
-    overdue = (
-        db.session.scalar(
-            select(func.count())
-            .select_from(WorkOrder)
-            .where(
-                WorkOrder.due_by < now,
-                WorkOrder.status.in_(("open", "assigned", "in_progress")),
-            )
-        )
-        or 0
-    )
-    completed_week = (
-        db.session.scalar(
-            select(func.count())
-            .select_from(WorkOrder)
-            .where(
+    """All WO counts collapsed into two aggregates.
+
+    Was 8 separate SELECT count() round-trips; the polling dashboard
+    fired all 8 every 60s. Postgres FILTER (WHERE …) lets us compute
+    every count in a single scan of the workorder table. Keeps the
+    dashboard tight under load.
+    """
+    sched = func.coalesce(WorkOrder.scheduled_for, WorkOrder.created_at)
+    started = func.coalesce(WorkOrder.started_at, WorkOrder.scheduled_for)
+    is_open = WorkOrder.status.in_(_WO_OPEN_STATUSES)
+    # `count(*) FILTER (WHERE …)` is the standard SQL idiom; SQLAlchemy
+    # exposes it via `func.count().filter(…)`.
+    #
+    # `select_from(WorkOrder)` is required for the tenant listener:
+    # `_apply_tenant_filter` uses `with_loader_criteria(WorkOrder, …)`,
+    # which only attaches criteria when the class is referenced as an
+    # entity in the SELECT/FROM. Without this, FILTER aggregates over
+    # WorkOrder columns slip past the listener and count cross-tenant
+    # rows. test_dashboard_is_tenant_scoped catches the regression.
+    row = db.session.execute(
+        select(
+            func.count().filter(is_open).label("open"),
+            func.count().filter(WorkOrder.status == "in_progress").label("in_progress"),
+            func.count()
+            .filter(is_open, WorkOrder.due_by < now)
+            .label("overdue"),
+            func.count().filter(is_open, sched < month_ago).label("stale_open"),
+            func.count()
+            .filter(WorkOrder.status == "completed", WorkOrder.completed_at >= week_ago)
+            .label("completed_week"),
+            func.count().filter(sched >= month_ago).label("scheduled_30d"),
+            func.count()
+            .filter(WorkOrder.status == "completed", WorkOrder.completed_at >= month_ago)
+            .label("completed_30d"),
+            # Average completion time: started → completed, only when
+            # both are present and ordered correctly. The same FILTER
+            # pattern keeps it in the single round-trip.
+            func.avg(func.extract("epoch", WorkOrder.completed_at - started) / 3600.0)
+            .filter(
                 WorkOrder.status == "completed",
-                WorkOrder.completed_at >= week_ago,
+                WorkOrder.completed_at >= month_ago,
+                WorkOrder.completed_at.isnot(None),
+                started.isnot(None),
+                WorkOrder.completed_at >= started,
             )
-        )
-        or 0
-    )
+            .label("avg_close_hours"),
+        ).select_from(WorkOrder)
+    ).one()
+
     stops_completed_week = (
         db.session.scalar(
             select(func.count()).select_from(WorkOrderAsset).where(WorkOrderAsset.completed_at >= week_ago)
@@ -99,106 +124,60 @@ def _wo_kpis(now: datetime, week_ago: datetime, month_ago: datetime) -> dict[str
         )
         or 0
     )
-    # Backlog: open WOs scheduled more than 30 days ago that are still
-    # open. Use scheduled_for (operational time) rather than created_at
-    # (intake time) — same reasoning as avg_close_hours below.
-    sched = func.coalesce(WorkOrder.scheduled_for, WorkOrder.created_at)
-    stale_open = (
-        db.session.scalar(
-            select(func.count())
-            .select_from(WorkOrder)
-            .where(
-                WorkOrder.status.in_(("open", "assigned", "in_progress", "on_hold")),
-                sched < month_ago,
-            )
-        )
-        or 0
-    )
-    # Completion rate: completed in last 30d / scheduled in last 30d. A
-    # ratio supervisors recognise immediately (>1.0 = burning down,
-    # <1.0 = backlog growing).
-    scheduled_30d = db.session.scalar(select(func.count()).select_from(WorkOrder).where(sched >= month_ago)) or 0
-    completed_30d = (
-        db.session.scalar(
-            select(func.count())
-            .select_from(WorkOrder)
-            .where(
-                WorkOrder.status == "completed",
-                WorkOrder.completed_at >= month_ago,
-            )
-        )
-        or 0
-    )
-    completion_rate = round(completed_30d / scheduled_30d, 2) if scheduled_30d else None
-    # Average completion time in hours for WOs closed last 30d. Measure
-    # operational duration (started → completed); fall back to scheduled
-    # → completed when started_at isn't recorded. Avoids using created_at
-    # which reflects the row's intake time, not work time.
-    started = func.coalesce(WorkOrder.started_at, WorkOrder.scheduled_for)
-    avg_close_hours = db.session.scalar(
-        select(func.avg(func.extract("epoch", WorkOrder.completed_at - started) / 3600.0)).where(
-            WorkOrder.status == "completed",
-            WorkOrder.completed_at >= month_ago,
-            WorkOrder.completed_at.isnot(None),
-            started.isnot(None),
-            WorkOrder.completed_at >= started,
-        )
-    )
+
+    completion_rate = round(row.completed_30d / row.scheduled_30d, 2) if row.scheduled_30d else None
     return {
-        "open": int(open_count),
-        "in_progress": int(in_progress),
-        "overdue": int(overdue),
-        "stale_open": int(stale_open),
-        "completed_this_week": int(completed_week),
+        "open": int(row.open or 0),
+        "in_progress": int(row.in_progress or 0),
+        "overdue": int(row.overdue or 0),
+        "stale_open": int(row.stale_open or 0),
+        "completed_this_week": int(row.completed_week or 0),
         "stops_completed_this_week": int(stops_completed_week),
         "hours_this_week": float(hours_week),
         "completion_rate_30d": completion_rate,
-        "avg_close_hours_30d": (round(float(avg_close_hours), 1) if avg_close_hours is not None else None),
+        "avg_close_hours_30d": (
+            round(float(row.avg_close_hours), 1) if row.avg_close_hours is not None else None
+        ),
     }
 
 
 def _sr_kpis(week_ago: datetime, month_ago: datetime) -> dict[str, Any]:
-    new_count = (
-        db.session.scalar(select(func.count()).select_from(ServiceRequest).where(ServiceRequest.status == "new")) or 0
-    )
-    triaged = (
-        db.session.scalar(select(func.count()).select_from(ServiceRequest).where(ServiceRequest.status == "triaged"))
-        or 0
-    )
-    dispatched = (
-        db.session.scalar(select(func.count()).select_from(ServiceRequest).where(ServiceRequest.status == "dispatched"))
-        or 0
-    )
-    # Excludes "duplicate" so this agrees with avg_resolution_hours
-    # below — both metrics now read "actual dispatch / resolution work,"
-    # not "anything that left the inbox." DASH-P1-3.
-    closed_week = (
-        db.session.scalar(
-            select(func.count())
-            .select_from(ServiceRequest)
-            .where(
-                ServiceRequest.status == "closed",
-                ServiceRequest.closed_at >= week_ago,
+    """All SR counts in one round-trip via FILTER aggregates.
+
+    `closed_this_week` excludes "duplicate" so it agrees with
+    `avg_resolution_hours_30d`; both metrics read "actual dispatch /
+    resolution work," not "anything that left the inbox." DASH-P1-3.
+    """
+    # select_from(ServiceRequest) is required for the tenant listener
+    # to scope FILTER aggregates — see the parallel comment in _wo_kpis.
+    row = db.session.execute(
+        select(
+            func.count().filter(ServiceRequest.status == "new").label("new"),
+            func.count().filter(ServiceRequest.status == "triaged").label("triaged"),
+            func.count().filter(ServiceRequest.status == "dispatched").label("dispatched"),
+            func.count()
+            .filter(ServiceRequest.status == "closed", ServiceRequest.closed_at >= week_ago)
+            .label("closed_week"),
+            func.avg(
+                func.extract("epoch", ServiceRequest.closed_at - ServiceRequest.reported_at) / 3600.0
             )
-        )
-        or 0
-    )
-    # Average resolution time (hours) for SRs closed in the last 30d.
-    # Excludes duplicates so the metric reflects actual dispatch work.
-    avg_resolution_hours = db.session.scalar(
-        select(func.avg(func.extract("epoch", ServiceRequest.closed_at - ServiceRequest.reported_at) / 3600.0)).where(
-            ServiceRequest.status == "closed",
-            ServiceRequest.closed_at >= month_ago,
-            ServiceRequest.closed_at.isnot(None),
-        )
-    )
+            .filter(
+                ServiceRequest.status == "closed",
+                ServiceRequest.closed_at >= month_ago,
+                ServiceRequest.closed_at.isnot(None),
+            )
+            .label("avg_resolution_hours"),
+        ).select_from(ServiceRequest)
+    ).one()
     return {
-        "new": int(new_count),
-        "triaged": int(triaged),
-        "dispatched": int(dispatched),
-        "closed_this_week": int(closed_week),
+        "new": int(row.new or 0),
+        "triaged": int(row.triaged or 0),
+        "dispatched": int(row.dispatched or 0),
+        "closed_this_week": int(row.closed_week or 0),
         "avg_resolution_hours_30d": (
-            round(float(avg_resolution_hours), 1) if avg_resolution_hours is not None else None
+            round(float(row.avg_resolution_hours), 1)
+            if row.avg_resolution_hours is not None
+            else None
         ),
     }
 
@@ -260,12 +239,30 @@ def _today_queue(today_start: datetime, now: datetime) -> list[dict[str, Any]]:
     return out
 
 
+_ACTIVITY_LIMIT = 12
+# Per-stream cap before merging. With 8 of each, a chatty comment burst
+# can't fully starve status transitions — both signal types stay visible.
+_ACTIVITY_PER_STREAM = 8
+
+
 def _recent_activity(since: datetime) -> list[dict[str, Any]]:
     """Recent comments + status transitions across the tenant — last 48h,
-    capped at 12. Mixed and re-sorted by occurred_at desc."""
+    capped at `_ACTIVITY_LIMIT`. Each stream is capped at
+    `_ACTIVITY_PER_STREAM` BEFORE the merge so a flood of comments can't
+    push every transition off the panel.
+
+    Each row carries the entity's human-readable code (`wo_number` /
+    `sr_number` / `inspection_number`) when available, so the frontend
+    can deep-link to the entity's detail page rather than the list.
+    Internal numeric ids are excluded from the response per CLAUDE.md
+    "no internal IDs in URLs."
+    """
     comment_rows = (
         db.session.execute(
-            select(Comment).where(Comment.created_at >= since).order_by(desc(Comment.created_at)).limit(20)
+            select(Comment)
+            .where(Comment.created_at >= since)
+            .order_by(desc(Comment.created_at))
+            .limit(_ACTIVITY_PER_STREAM)
         )
         .scalars()
         .all()
@@ -281,11 +278,15 @@ def _recent_activity(since: datetime) -> list[dict[str, Any]]:
                 AuditLog.action.in_(("wo_transition", "sr_transition", "sr_dispatch")),
             )
             .order_by(desc(AuditLog.occurred_at))
-            .limit(20)
+            .limit(_ACTIVITY_PER_STREAM)
         )
         .scalars()
         .all()
     )
+
+    # Resolve internal entity_ids → human codes in batched lookups
+    # (one query per entity type, regardless of row count).
+    code_lookup = _activity_code_lookup(comment_rows, audit_rows)
 
     items: list[dict[str, Any]] = []
     for c in comment_rows:
@@ -294,7 +295,7 @@ def _recent_activity(since: datetime) -> list[dict[str, Any]]:
                 "kind": "comment",
                 "occurred_at": c.created_at.isoformat(),
                 "entity_type": c.entity_type,
-                "entity_id": c.entity_id,
+                "entity_code": code_lookup.get((c.entity_type, c.entity_id)),
                 "summary": c.body[:140],
             }
         )
@@ -306,12 +307,49 @@ def _recent_activity(since: datetime) -> list[dict[str, Any]]:
                 "kind": "transition",
                 "occurred_at": ev.occurred_at.isoformat(),
                 "entity_type": ev.entity_type,
-                "entity_id": ev.entity_id,
+                "entity_code": code_lookup.get((ev.entity_type, ev.entity_id)),
                 "summary": (f"{before} → {after}" if before and after else ev.action),
             }
         )
     items.sort(key=lambda x: x["occurred_at"], reverse=True)
-    return items[:12]
+    return items[:_ACTIVITY_LIMIT]
+
+
+def _activity_code_lookup(comment_rows, audit_rows) -> dict[tuple[str, int], str]:
+    """Batch-resolve (entity_type, entity_id) → human code for every
+    activity row. One SELECT per entity type, regardless of row count.
+    Tenant scoping comes from the session listener (all three are
+    TenantScopedMixin)."""
+    by_type: dict[str, set[int]] = {}
+    for r in (*comment_rows, *audit_rows):
+        by_type.setdefault(r.entity_type, set()).add(r.entity_id)
+
+    out: dict[tuple[str, int], str] = {}
+
+    if "work_order" in by_type:
+        rows = db.session.execute(
+            select(WorkOrder.id, WorkOrder.wo_number).where(WorkOrder.id.in_(by_type["work_order"]))
+        ).all()
+        for wo_id, code in rows:
+            out[("work_order", wo_id)] = code
+    if "service_request" in by_type:
+        rows = db.session.execute(
+            select(ServiceRequest.id, ServiceRequest.sr_number).where(
+                ServiceRequest.id.in_(by_type["service_request"])
+            )
+        ).all()
+        for sr_id, code in rows:
+            out[("service_request", sr_id)] = code
+    if "inspection" in by_type:
+        rows = db.session.execute(
+            select(Inspection.id, Inspection.inspection_number).where(
+                Inspection.id.in_(by_type["inspection"])
+            )
+        ).all()
+        for ins_id, code in rows:
+            out[("inspection", ins_id)] = code
+
+    return out
 
 
 def _wo_by_category(since: datetime) -> list[dict[str, Any]]:
@@ -345,46 +383,55 @@ def _by_area(now: datetime) -> list[dict[str, Any]]:
     the area's polygon. This is read-time spatial — fine for tenants
     with hundreds of areas + thousands of active items; switch to a
     materialized join later if it ever becomes the bottleneck.
+
+    Within a kind, an entity counts once even if its asset's geom
+    intersects multiple polygons (e.g. two overlapping water systems);
+    the entity is assigned to the smallest enclosing area in that kind.
+    Across kinds an entity can still appear in multiple rows (a
+    maintenance district + a water system are different concepts) — the
+    panel surfaces that explicitly so the supervisor doesn't try to add
+    rows up to the headline KPI.
     """
-    WO_ACTIVE = ("open", "assigned", "in_progress", "on_hold")
+    WO_ACTIVE = _WO_OPEN_STATUSES
     SR_ACTIVE = ("new", "triaged", "dispatched")
 
-    # active WOs per area
-    wo_q = (
-        select(ServiceArea.id.label("area_id"), func.count(WorkOrder.id).label("n"))
-        .select_from(ServiceArea)
-        .join(Asset, func.ST_Intersects(ServiceArea.geom, Asset.geom))
-        .join(WorkOrder, WorkOrder.asset_id == Asset.id)
-        .where(WorkOrder.status.in_(WO_ACTIVE))
-        .where(ServiceArea.deleted_at.is_(None))
-        .group_by(ServiceArea.id)
-    )
-    wo_by_area = {r.area_id: int(r.n) for r in db.session.execute(wo_q).all()}
+    # Smallest-area-wins assignment: for each entity, within each kind
+    # of service area, pick the area whose polygon has the smallest
+    # ST_Area. DISTINCT ON gives one row per (entity, kind), which we
+    # then group on the area side to count.
+    #
+    # The Asset join is shared between the WO and SR variants; only the
+    # outer entity table differs.
+    def _assigned_areas(entity_table, status_col, statuses, *extra_filters):
+        ranked = (
+            select(
+                entity_table.id.label("entity_id"),
+                ServiceArea.kind.label("kind"),
+                ServiceArea.id.label("area_id"),
+            )
+            .select_from(entity_table)
+            .join(Asset, entity_table.asset_id == Asset.id)
+            .join(ServiceArea, func.ST_Intersects(ServiceArea.geom, Asset.geom))
+            .where(status_col.in_(statuses))
+            .where(ServiceArea.deleted_at.is_(None))
+            .order_by(
+                entity_table.id,
+                ServiceArea.kind,
+                func.ST_Area(ServiceArea.geom).asc(),
+            )
+            .distinct(entity_table.id, ServiceArea.kind)
+        )
+        for f in extra_filters:
+            ranked = ranked.where(f)
+        sub = ranked.subquery()
+        rows = db.session.execute(
+            select(sub.c.area_id, func.count().label("n")).group_by(sub.c.area_id)
+        ).all()
+        return {int(r.area_id): int(r.n) for r in rows}
 
-    # overdue WOs per area
-    od_q = (
-        select(ServiceArea.id.label("area_id"), func.count(WorkOrder.id).label("n"))
-        .select_from(ServiceArea)
-        .join(Asset, func.ST_Intersects(ServiceArea.geom, Asset.geom))
-        .join(WorkOrder, WorkOrder.asset_id == Asset.id)
-        .where(WorkOrder.status.in_(WO_ACTIVE))
-        .where(WorkOrder.due_by < now)
-        .where(ServiceArea.deleted_at.is_(None))
-        .group_by(ServiceArea.id)
-    )
-    overdue_by_area = {r.area_id: int(r.n) for r in db.session.execute(od_q).all()}
-
-    # active SRs per area
-    sr_q = (
-        select(ServiceArea.id.label("area_id"), func.count(ServiceRequest.id).label("n"))
-        .select_from(ServiceArea)
-        .join(Asset, func.ST_Intersects(ServiceArea.geom, Asset.geom))
-        .join(ServiceRequest, ServiceRequest.asset_id == Asset.id)
-        .where(ServiceRequest.status.in_(SR_ACTIVE))
-        .where(ServiceArea.deleted_at.is_(None))
-        .group_by(ServiceArea.id)
-    )
-    sr_by_area = {r.area_id: int(r.n) for r in db.session.execute(sr_q).all()}
+    wo_by_area = _assigned_areas(WorkOrder, WorkOrder.status, WO_ACTIVE)
+    overdue_by_area = _assigned_areas(WorkOrder, WorkOrder.status, WO_ACTIVE, WorkOrder.due_by < now)
+    sr_by_area = _assigned_areas(ServiceRequest, ServiceRequest.status, SR_ACTIVE)
 
     # Hydrate the area metadata + counts.
     areas = db.session.scalars(

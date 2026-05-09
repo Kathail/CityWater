@@ -88,6 +88,33 @@ function representativePoint(
   return null;
 }
 
+/** Compute a [west, south, east, north] bbox from a Polygon or
+ * MultiPolygon geometry. Used to fit the map to a service area when
+ * `?area=<code>` is in the URL. Returns null on empty geometries. */
+function polygonBbox(
+  geom: GeoJSON.Polygon | GeoJSON.MultiPolygon,
+): [[number, number], [number, number]] | null {
+  const rings: number[][][] =
+    geom.type === "Polygon" ? geom.coordinates : geom.coordinates.flat();
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  for (const ring of rings) {
+    for (const [lon, lat] of ring) {
+      if (lon < west) west = lon;
+      if (lon > east) east = lon;
+      if (lat < south) south = lat;
+      if (lat > north) north = lat;
+    }
+  }
+  if (!Number.isFinite(west)) return null;
+  return [
+    [west, south],
+    [east, north],
+  ];
+}
+
 /** Parse a `?ll=lon,lat&z=zoom` pair from the URL. Returns the default
  * pair when missing or malformed. */
 function readCenterZoom(search: URLSearchParams): { center: [number, number]; zoom: number } {
@@ -123,6 +150,10 @@ export function MapPage() {
   // continuously and that would create a feedback loop.
   const initialView = useRef(readCenterZoom(search));
   const initialFocus = useRef(search.get("focus"));
+  // `?area=<code>` deep-links from the dashboard's "By area" panel.
+  // Resolved against the loaded service_areas overlay; the map fits to
+  // the area's bounds and turns the matching area-kind layer on.
+  const initialArea = useRef(search.get("area"));
   // Suppresses the URL-write effect when we're moving the map in
   // response to a URL change (e.g. external link). Without this, the
   // very first moveend after a navigation would overwrite the URL the
@@ -288,6 +319,44 @@ export function MapPage() {
       cancelled = true;
     };
   }, []);
+
+  // ?area=<code> — fit the map to the matching service area's bounds
+  // and ensure that area-kind's layer is visible. Runs once when the
+  // overlays payload first arrives (the area data lives there). The
+  // `?area=` is then cleared from the URL so a subsequent pan doesn't
+  // overwrite it on every moveend.
+  const areaRan = useRef(false);
+  useEffect(() => {
+    if (areaRan.current) return;
+    const code = initialArea.current;
+    if (!code) return;
+    const overlays = overlaysQuery.data;
+    if (!overlays) return;
+    areaRan.current = true;
+    const feature = overlays.service_areas.features.find((f) => f.properties.code === code);
+    if (!feature) return;
+    const bbox = polygonBbox(feature.geometry);
+    if (!bbox) return;
+    const map = mapRef.current;
+    if (!map) return;
+    suppressUrlWrite.current = true;
+    map.fitBounds(bbox, { padding: 40, duration: 600, maxZoom: 16 });
+    setAreaKindsVisible((prev) => {
+      if (prev.has(feature.properties.area_kind)) return prev;
+      const next = new Set(prev);
+      next.add(feature.properties.area_kind);
+      return next;
+    });
+    // Drop ?area from the URL — it served its purpose. Center/zoom
+    // will be written by the upcoming moveend so the URL stays
+    // sharable for the resulting view.
+    const nextSearch = new URLSearchParams(search);
+    nextSearch.delete("area");
+    setSearch(nextSearch, { replace: true });
+    // search/setSearch intentionally elided from deps — we only want
+    // this to run once when overlays arrive.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlaysQuery.data]);
 
   // Sync `?focus=` to the selected asset so the URL stays sharable as
   // the operator navigates between assets via the search bar / clicks.

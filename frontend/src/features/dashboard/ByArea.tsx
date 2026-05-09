@@ -93,7 +93,10 @@ function AreaRow({ row, slug }: { row: DashboardResponse["by_area"][number]; slu
   const isQuiet = row.active_wos === 0 && row.overdue_wos === 0 && row.active_srs === 0;
   return (
     <Link
-      to={`/${slug}/map`}
+      // Deep-link to the map with this area focused. MapPage reads
+      // `?area=<code>`, fits the bounds, and turns the matching
+      // area-kind layer on.
+      to={`/${slug}/map?area=${encodeURIComponent(row.code)}`}
       className="grid grid-cols-[1fr_auto] items-center gap-3 rounded px-1.5 py-1 text-sm transition-colors hover:bg-slate-800/40"
     >
       <span className="flex min-w-0 items-center gap-2">

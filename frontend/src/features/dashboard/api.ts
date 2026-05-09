@@ -37,7 +37,10 @@ export interface DashboardActivityItem {
   kind: "comment" | "transition";
   occurred_at: string;
   entity_type: string;
-  entity_id: number;
+  // Human-readable code (wo_number / sr_number / inspection_number).
+  // Backend resolves the internal id → code; null when the row is
+  // soft-deleted or otherwise no longer reachable.
+  entity_code: string | null;
   summary: string;
 }
 
